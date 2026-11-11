@@ -7,7 +7,8 @@ import { RequireAuth } from './auth/RequireAuth';
 import { OrgProvider } from './org/OrgProvider';
 import { OrgSelectPage } from './org/OrgSelectPage';
 import { RequireOrg } from './org/RequireOrg';
-import { SessionPage } from './sessions/SessionPage';
+import { GuestPage } from './session/GuestPage';
+import { SessionPage } from './session/SessionPage';
 
 export function App() {
   return (
@@ -15,6 +16,8 @@ export function App() {
       <OrgProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Widok rozmówcy: otwierany z linku, bez logowania. */}
+          <Route path="/s/:token" element={<GuestPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/org" element={<OrgSelectPage />} />
             <Route element={<RequireOrg />}>

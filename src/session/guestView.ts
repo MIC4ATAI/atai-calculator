@@ -193,3 +193,15 @@ export function buildGuestView(row: SessionRow): GuestView {
     result: row.revealed ? buildGuestResult(inputs, resolveParams(row.params)) : null,
   };
 }
+
+/**
+ * Wariant miksu do pokazania dla wybranej przez suwak liczby nowych klientów KH.
+ * Brak wyboru (null) = maksimum; wartości spoza zakresu są przycinane do [0, maksimum].
+ */
+export function pickMix(result: GuestResult, mixKh: number | null): MixResult {
+  const max = result.maksNowychKh;
+  const wanted = mixKh === null ? max : Math.max(0, Math.min(Math.floor(mixKh), max));
+  const found = result.mixes.find((m) => m.kh === wanted);
+  // mixes zawsze zawiera wszystkie wartości od max do 0; ostatnia deska ratunku to pierwszy wariant.
+  return found ?? (result.mixes[0] as MixResult);
+}

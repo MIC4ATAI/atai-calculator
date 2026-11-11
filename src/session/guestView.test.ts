@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_PARAMS } from '../calc/calculator.ts';
 import {
   buildGuestView,
+  pickMix,
   resolveParams,
   sanitizeInputs,
   toCalcInputs,
@@ -153,5 +154,22 @@ describe('buildGuestView', () => {
     const v = buildGuestView(row({ mix_kh: 7, reply: 'Dzień dobry' }));
     expect(v.mixKh).toBe(7);
     expect(v.reply).toBe('Dzień dobry');
+  });
+});
+
+describe('pickMix', () => {
+  const result = () => buildGuestView(row()).result!;
+
+  it('brak wyboru = maksimum KH', () => {
+    expect(pickMix(result(), null)).toMatchObject({ kh: 20, kpir: 0 });
+  });
+  it('wybrana wartość', () => {
+    expect(pickMix(result(), 5)).toMatchObject({ kh: 5, kpir: 30 });
+    expect(pickMix(result(), 0)).toMatchObject({ kh: 0, kpir: 40 });
+  });
+  it('wartości spoza zakresu są przycinane', () => {
+    expect(pickMix(result(), 999).kh).toBe(20);
+    expect(pickMix(result(), -4).kh).toBe(0);
+    expect(pickMix(result(), 7.9).kh).toBe(7);
   });
 });

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useOrgs } from '../org/OrgProvider';
-import { CopyButton } from '../sessions/CopyButton';
-import { formatDateTime, guestLink, statusLabel } from '../sessions/sessionFormat';
-import { createSession, listMySessions, type SessionListItem } from '../sessions/sessionsApi';
+import { CopyButton } from '../session/CopyButton';
+import { formatDateTime, guestLink, statusLabel } from '../session/sessionFormat';
+import { createSession, listMySessions, type SessionListItem } from '../session/sessionsApi';
 
 /** Strona główna konsultanta: jego sesje w wybranej organizacji i „Nowa sesja”. */
 export function HomePage() {
