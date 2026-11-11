@@ -41,4 +41,8 @@ Pełna specyfikacja: `docs/spec.md`. Przeczytaj ją przed planowaniem każdej wi
 npm install
 npm test          # testy (Vitest)
 npm run typecheck # sprawdzenie typów
+npm run test:db   # testy RLS i bazy (pgTAP; wymaga działającego `supabase start`)
+npm run dev       # aplikacja lokalnie (osobno: `supabase functions serve`)
 ```
+
+Uruchomienie lokalne krok po kroku: `README.md`.

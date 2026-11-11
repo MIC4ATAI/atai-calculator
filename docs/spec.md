@@ -117,24 +117,55 @@ Zgody zbiera osobny landing page organizacji, do którego prowadzi zaproszenie w
 - **Powiadomienie dla konsultanta** przez n8n (np. Telegram).
 - **Widok przed follow-upem:** stan z rozmowy, ostatnia symulacja i lista zmian obok siebie.
 
+## Sesja na żywo (etap 1)
+
+- **Link rozmówcy:** `/s/<token>`, token to 24 losowe bajty (48 znaków hex), generowany w bazie.
+  Otwiera się bez logowania. Rozmówca nie ma dostępu do żadnej tabeli — cały jego dostęp idzie
+  przez Edge Function `guest-session` (service role po stronie serwera, `verify_jwt = false`).
+- **Co widzi rozmówca:** swoje dane, miks z suwaka, własną odpowiedź i — dopiero po odsłonięciu
+  przez konsultanta — wynik. Ciche założenia (`params`) nie są przekazywane wprost; wynik zawiera
+  tylko to, co trzeba pokazać (godziny, minuty, miks, ewentualnie wartość czasu), bez kosztu
+  zatrudnienia, efektywnych godzin i kosztu godziny. Zapis ogranicza lista dozwolonych pól
+  (`kh`, `kpir`, `prac`, `przychod`, `koszty`, `ef`, `wspCzas`, `wspCena`), miks i odpowiedź
+  (do 2000 znaków).
+- **Obliczenia** robi wyłącznie `src/calc` — ta sama implementacja w aplikacji i w Edge Function
+  (funkcja importuje moduł bezpośrednio, bez kopii).
+- **Realtime:** konsultant dostaje zmiany wiersza `calc_sessions` przez `postgres_changes` (przechodzą
+  przez RLS). Rozmówca słucha pustego pinga Broadcast na kanale `session:<token>` (wysyła go trigger
+  bazy) i po nim pobiera stan przez funkcję. Przez publiczny kanał nie płyną żadne dane.
+- **Zapisy:** sesje powstają wyłącznie przez RPC `create_calc_session` (sprawdza członkostwo).
+  Dane rozmówcy zmienia się przez RPC `patch_calc_session_inputs` (konsultant) i
+  `guest_patch_calc_session` (tylko service role) — scalają pola po stronie bazy, więc równoległe
+  wpisy konsultanta i rozmówcy się nie nadpisują.
+- **Dziennik zmian** wpisuje trigger bazy, nie aplikacja: aktor to `guest` (bez zalogowanego
+  użytkownika) albo `consultant`, więc nie da się go podrobić.
+
 ## Model danych
 
 | Tabela | Zawartość | Kto może zmieniać |
 | --- | --- | --- |
-| `organizations` | tenant: nazwa, NIP, marka (logo, kolory, nadawca maili), link do polityki prywatności, domyślne założenia kalkulatora | operator; marka i założenia także właściciel organizacji |
-| `profiles` | osoba: imię i nazwisko, zdjęcie, telefon, podpis | sama osoba |
+| `organizations` | tenant: nazwa, NIP, marka (logo, kolory, nadawca maili), link do polityki prywatności, domyślne założenia kalkulatora | operator; marka i założenia także właściciel organizacji (nazwę i NIP zmienia tylko operator) |
+| `profiles` | osoba: imię i nazwisko, zdjęcie, telefon, podpis; tworzony automatycznie przy założeniu konta | sama osoba |
 | `memberships` | osoba w organizacji i jej rola (właściciel / admin / konsultant) | operator, właściciel organizacji |
+| `platform_operators` | konta z rolą operatora platformy (uprawnienie konta, nie cecha organizacji) | migracje / service role; klient nie ma zapisu |
 | `companies` | firmy rozmówców: NIP, REGON, nazwa, adres, surowa odpowiedź GUS | serwer |
 | `leads` | `org_id`, konsultant, firma, e-mail podany do wysłania kalkulacji | serwer, tylko dopisywanie |
 | `consents` | zgody z landing page organizacji: treść i wersja klauzuli, czas, IP, powiązanie z leadem | serwer, tylko dopisywanie |
-| `calc_sessions` | `org_id`, konsultant, token linku, status (na żywo / udostępniona / zarchiwizowana) | serwer |
+| `calc_sessions` | `org_id`, konsultant, token linku, status (na żywo / udostępniona / zarchiwizowana), dane rozmówcy (`inputs`), ciche założenia sesji (`params`, kopia z organizacji w chwili utworzenia), `revealed`, `mix_kh`, `reply` | serwer (RPC i Edge Function); konsultant zmienia założenia, odsłonięcie, miks i status własnej sesji |
 | `calc_snapshots` | zamrożone dane wejściowe, wyniki, miks, wersja logiki | tylko tworzenie |
-| `calc_events` | dziennik zmian (rozmówca / konsultant) | tylko dopisywanie |
-| `usage_events` | zliczanie użycia na potrzeby rozliczeń | serwer, tylko dopisywanie |
+| `calc_events` | dziennik zmian (rozmówca / konsultant) | tylko dopisywanie (wpisuje trigger bazy) |
+| `usage_events` | zliczanie użycia na potrzeby rozliczeń (`session_created`) | serwer, tylko dopisywanie |
 
 RLS: konsultant widzi swoje sesje i leady, właściciel i admin — całą organizację, organizacje
-nie widzą się nawzajem, operator widzi tylko organizacje i użycie. Testy tych reguł są częścią
-etapu 1.
+nie widzą się nawzajem. Operator widzi organizacje, członkostwa (zarządza nimi) i użycie; nie widzi
+sesji, dziennika zdarzeń ani snapshotów. Testy tych reguł (pgTAP, `supabase/tests/`) są częścią
+etapu 1; każda polityka ma test.
+
+Tylko-dopisywanie jest egzekwowane na trzy sposoby: brak grantów UPDATE/DELETE dla klienta, brak
+polityk i trigger blokujący UPDATE, DELETE i TRUNCATE także dla service role i właściciela bazy.
+Tabele `calc_snapshots`, `calc_events` i `usage_events` odwołują się do sesji kluczem obcym
+`RESTRICT`, więc **sesji z historią nie da się usunąć**. Usuwanie danych na żądanie osoby (RODO)
+wymaga osobnej, świadomej migracji.
 
 ## Kolejność pytań w rozmowie
 
@@ -149,6 +180,32 @@ Decyzja: NIP na początku rozmowy, e-mail dopiero przy CTA, zgody wyłącznie na
 | 3. Follow-up | dziennik zmian, powiadomienia przez n8n, widok „rozmowa vs ostatnia symulacja” |
 | 4. Reszta | landing page'e organizacji ze zgodami, panel operatora z rozliczeniem użycia, migracja kontaktów z LinkedIn |
 
+### Stan etapu 1 (2026-11-11)
+
+Zrobione: szkielet Vite + React + TypeScript; migracja bazy (osiem tabel: `organizations`,
+`profiles`, `memberships`, `platform_operators`, `calc_sessions`, `calc_snapshots`, `calc_events`,
+`usage_events`) z RLS i testami pgTAP; logowanie konsultanta magic linkiem i wybór organizacji;
+tworzenie sesji, lista sesji i link dla rozmówcy; sesja na żywo (widok rozmówcy i prezentera,
+Realtime, odsłanianie wyniku, suwak miksu po obu stronach); zliczanie użycia.
+
+Odstępstwa od prototypu i pierwotnego planu:
+
+- **Metryka „Przychód / efektywna h”** z widoku prezentera nie jest przeniesiona: jej wzoru nie ma
+  w `src/calc` ani w testach zgodności z arkuszem. Jeśli ma być, dodajemy ją do `src/calc` z podbiciem
+  `CALC_VERSION` i wartością z arkusza.
+- **„Dodatkowi klienci KH”** w widoku prezentera to liczba całkowita (`maksNowychKh`, etykieta
+  „Maks. nowi klienci KH”), a nie wartość ułamkowa.
+- **Komunikat dla rozmówcy** „Uzupełnij dane powyżej, a wynik pojawi się tutaj.” — gdy wynik jest
+  odsłonięty, ale dane są niekompletne (w prototypie nic się wtedy nie pokazywało).
+- **Ciche założenia** nie są sekretem kryptograficznym: nie przekazujemy ich wprost, ale rozmówca
+  widzi godziny do odzyskania, z których da się wyliczyć iloczyn `cel / (dni × godziny)`. Prototyp
+  też pokazuje rozmówcy cel jako „wartość czasu”, gdy nie podał przychodu.
+- **Lista „Sesje”** pokazuje tylko własne sesje konsultanta; widok całej organizacji dla właściciela
+  i admina (RLS na to pozwala) jest poza zakresem etapu 1.
+
+Nie zbudowane w etapie 1 (zgodnie z zakresem): NIP i GUS, e-mail i Excel, zamrażanie stanu przy CTA,
+powiadomienia, landing page'e organizacji, panel operatora.
+
 ## Infrastruktura
 
 - GitHub: organizacja MIC4ATAI, repozytorium `atai-calculator` (prywatne).
@@ -156,3 +213,21 @@ Decyzja: NIP na początku rozmowy, e-mail dopiero przy CTA, zgody wyłącznie na
 - Vercel: na start konto Hobby wyłącznie do budowy i testów; **przed pierwszą rozmową
   z prawdziwym klientem team na planie Pro i transfer projektu.**
 - MailerSend: weryfikacja domeny nadawcy (SPF/DKIM).
+
+### Przed pierwszą rozmową z prawdziwym klientem
+
+Rzeczy znane z etapu 1, które trzeba zamknąć przed produkcją:
+
+- **Wdrożenie Edge Function `guest-session`:** lokalnie `supabase functions serve` importuje
+  `src/calc` spoza katalogu funkcji bez problemu, ale `supabase functions deploy` bundluje inaczej —
+  sprawdzić przy pierwszym wdrożeniu. Awaryjnie: skrypt kopiujący `src/calc` do
+  `supabase/functions/_shared/` przed wdrożeniem (bez ręcznie utrzymywanych kopii).
+- **Limit zapytań** do `guest-session` (na IP / token) na poziomie bramy; dziś chroni ją tylko
+  192-bitowy token i limit rozmiaru ciała (16 KB).
+- **Auth produkcyjny:** adresy przekierowań i limit wysyłki maili ustawić w panelu Supabase (lokalny
+  `config.toml` ma limit podniesiony do 30/h tylko na potrzeby testów); polski szablon maila z magic
+  linkiem (domyślny jest angielski), własny SMTP / MailerSend.
+- **Usuwanie danych na żądanie (RODO):** sesje z historią są nieusuwalne z założenia — przygotować
+  osobną, udokumentowaną procedurę (migracja z jawnym wyłączeniem triggera dla konkretnych rekordów).
+- **Marka organizacji** (logo, kolory, nadawca maili, osoba konsultanta) w widoku rozmówcy —
+  zgodnie z sekcją „SaaS”; etap 1 pokazuje neutralny widok.
