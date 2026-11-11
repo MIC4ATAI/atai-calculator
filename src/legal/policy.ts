@@ -31,7 +31,12 @@ export interface PolicyConfig {
 
 /** Konfiguracja dla MITAX Consulting sp. z o.o. Brakujące dane uzupełnia właściciel, a treść zatwierdza prawnik. */
 export const MITAX_POLICY: PolicyConfig = {
-  controller: { name: 'MITAX Consulting sp. z o.o.', nip: '6152043432', address: null, contactEmail: null },
+  controller: {
+    name: 'MITAX Consulting sp. z o.o.',
+    nip: '6152043432',
+    address: 'ul. Warszawska 4/8, 59-900 Zgorzelec',
+    contactEmail: 'rodo@mitax.pl',
+  },
   retention: null,
   erasureHandling: null,
   transfers: null,
