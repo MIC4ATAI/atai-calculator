@@ -239,6 +239,26 @@ Generator Excela (`src/excel/`, krok 2.4):
 - **Jawne ciche założenia.** Żeby formuły działały, cel korzyści, dni robocze i godziny są w Excelu zwykłymi,
   widocznymi komórkami — rozmówca zobaczy je po CTA.
 
+Mail z kalkulacją, polityka CTA i adaptery poczty (`src/email/`, `src/cta/`, krok 2.5):
+
+- **Mail** (HTML + tekst, po polsku): pozdrowienie, opis załącznika, jedna linia wyniku („121 h miesięcznie →
+  +20 klientów KH”), link do sesji, podpis konsultanta z profilu, stopka. Marka z `organizations.brand`
+  (`logoUrl` i `landingUrl` tylko https, `primaryColor`, `senderName`, `senderEmail`) — każde pole jest
+  walidowane osobno, niepoprawne jest odrzucane. Wszystkie dane dynamiczne (m.in. nazwa firmy z GUS) są
+  escapowane, a temat sprowadzany do jednej linii. Kolor tekstu na przycisku dobierany wg kontrastu (WCAG).
+- **Do potwierdzenia z prawnikiem** (stałe w `src/email/template.ts`): `LANDING_INVITATION_TEXT` (zaproszenie na
+  landing page) i `ONE_TIME_NOTICE_TEXT` (stopka). Link do landing page nie niesie identyfikatora sesji —
+  sposób powiązania zgód z firmą i kalkulacją ustali etap 4.
+- **MailerSend zwraca 202 także wtedy, gdy wszyscy odbiorcy są zablokowani (suppressed)** — wtedy nie ma
+  nagłówka `x-message-id` i mail NIE został wysłany. Taka odpowiedź (jak i `x-send-paused`) nie jest liczona jako
+  udana dostawa. Śledzenie otwarć i kliknięć jest wyłączone (`settings`), bo to jednorazowa wiadomość na prośbę.
+- **Polityka CTA** (`decideCta`): wysyłka dozwolona po odsłonięciu wyniku, przy podanym NIP-ie i kompletnych danych,
+  do 3 udanych wysyłek na sesję; po pierwszej udanej adres jest zablokowany. SQL (`prepare_calculation_delivery`)
+  pozostaje ostatecznym strażnikiem — TS daje tanie odrzucenia i komunikaty przed budowaniem Excela.
+- **Adaptery** (`createMailer`): `MAIL_TRANSPORT=mailersend` (domyślny) albo `mailpit` (tylko lokalnie); odczyt
+  środowiska i `fetch` są wstrzykiwane, więc logika jest testowana bez Deno. Błędy zapisywane w
+  `lead_deliveries.error` mają najwyżej 200 znaków, jedną linię i nie zawierają tokenu ani adresu odbiorcy.
+
 ## Infrastruktura
 
 - GitHub: organizacja MIC4ATAI, repozytorium `atai-calculator` (prywatne).
