@@ -7,6 +7,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import { OrgProvider } from './org/OrgProvider';
 import { OrgSelectPage } from './org/OrgSelectPage';
 import { RequireOrg } from './org/RequireOrg';
+import { SessionPage } from './sessions/SessionPage';
 
 export function App() {
   return (
@@ -19,6 +20,7 @@ export function App() {
             <Route element={<RequireOrg />}>
               <Route element={<AppShell />}>
                 <Route path="/app" element={<HomePage />} />
+                <Route path="/session/:id" element={<SessionPage />} />
               </Route>
             </Route>
           </Route>
