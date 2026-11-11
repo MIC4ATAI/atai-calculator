@@ -16,16 +16,20 @@ import { buildGuestView, type SessionRow } from '../../../src/session/guestView.
 import { admin } from '../_shared/admin.ts';
 import { handleNonPost, json, readJsonBody } from '../_shared/http.ts';
 
+// Kolumny firmy potrzebne do widoku rozmówcy (surowa odpowiedź GUS nie jest wybierana).
+const COMPANY_COLUMNS =
+  'nip, regon, name, street, building_no, unit_no, postal_code, city, voivodeship, gus_type, gus_status, fetched_at';
+
 /** Widok sesji po tokenie; null, gdy sesji nie ma albo jest zarchiwizowana. */
 async function loadView(token: string) {
   const { data, error } = await admin
     .from('calc_sessions')
-    .select('inputs, params, revealed, mix_kh, reply, status')
+    .select(`inputs, params, revealed, mix_kh, reply, status, company:companies(${COMPANY_COLUMNS})`)
     .eq('token', token)
     .maybeSingle();
   if (error) throw error;
   if (!data || data.status === 'archived') return null;
-  return buildGuestView(data as SessionRow);
+  return buildGuestView(data as unknown as SessionRow);
 }
 
 Deno.serve(async (req) => {

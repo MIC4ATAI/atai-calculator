@@ -60,7 +60,9 @@ function PresenterSession({ id }: { id: string }) {
       ? 'wynik odsłonięty'
       : result
         ? 'dane kompletne'
-        : 'czeka na rozmówcę';
+        : row.companyId
+          ? 'czeka na rozmówcę'
+          : 'czeka na NIP';
 
   return (
     <main className="page presenter">
@@ -89,6 +91,23 @@ function PresenterSession({ id }: { id: string }) {
           <input type="text" readOnly value={link} aria-label="Link dla rozmówcy" onFocus={(e) => e.target.select()} />
           <CopyButton text={link} />
         </div>
+      </section>
+
+      <section className="card company-block">
+        <h2>Firma rozmówcy</h2>
+        {s.company === null ? (
+          <p className="sub">{row.companyId ? 'Wczytywanie danych firmy…' : 'Rozmówca jeszcze nie podał NIP-u.'}</p>
+        ) : s.company.gusStatus === 'found' && s.company.name ? (
+          <>
+            <p className="company-name">{s.company.name}</p>
+            <p className="sub">{[`NIP ${s.company.nip}`, s.company.address].filter(Boolean).join(' · ')}</p>
+          </>
+        ) : (
+          <>
+            <p className="company-name">NIP {s.company.nip}</p>
+            <p className="sub">Rejestr REGON był niedostępny — rozmówca kontynuuje z samym numerem NIP.</p>
+          </>
+        )}
       </section>
 
       <section className="pane">

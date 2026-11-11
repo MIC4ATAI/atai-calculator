@@ -1,4 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
+import type { CompanyView } from '../company/companyView';
+import { lookupErrorKind, type LookupErrorKind } from '../company/lookupErrors';
 import { supabase } from '../lib/supabase';
 import type { GuestView, SessionInputs } from './guestView';
 
@@ -24,4 +26,33 @@ export async function callGuest(body: GuestCall): Promise<GuestCallResult> {
   }
   if (!data?.view) return { ok: false, kind: 'unavailable' };
   return { ok: true, view: data.view };
+}
+
+export type LookupCallResult = { ok: true; company: CompanyView } | { ok: false; kind: LookupErrorKind };
+
+/**
+ * Wywołanie Edge Function `lookup-company`: NIP rozmówcy → firma z GUS przypięta do sesji.
+ * Kod HTTP i pole `error` z odpowiedzi serwera zamieniamy na rodzaj błędu (komunikaty: lookupErrors).
+ */
+export async function callLookup(token: string, nip: string): Promise<LookupCallResult> {
+  const { data, error } = await supabase.functions.invoke<{ company: CompanyView }>('lookup-company', {
+    body: { token, nip },
+  });
+  if (error) {
+    let status: number | null = null;
+    let code: string | null = null;
+    if (error instanceof FunctionsHttpError && error.context instanceof Response) {
+      status = error.context.status;
+      try {
+        const body: unknown = await error.context.json();
+        const value = (body as { error?: unknown } | null)?.error;
+        code = typeof value === 'string' ? value : null;
+      } catch {
+        /* odpowiedź bez JSON-a — zostaje sam kod HTTP */
+      }
+    }
+    return { ok: false, kind: lookupErrorKind(status, code) };
+  }
+  if (!data?.company) return { ok: false, kind: 'unavailable' };
+  return { ok: true, company: data.company };
 }

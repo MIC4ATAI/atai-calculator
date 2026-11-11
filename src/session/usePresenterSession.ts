@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CalcParams } from '../calc/calculator';
+import type { CompanyView } from '../company/companyView';
 import { supabase } from '../lib/supabase';
 import { EXAMPLE_INPUTS, FIELD_ORDER } from './fields';
 import type { GuestInputKey, InputValue, SessionInputs } from './guestView';
 import {
+  loadCompany,
   loadPresenterRow,
   patchSessionInputs,
   toPresenterRow,
@@ -48,6 +50,7 @@ export function usePresenterSession(id: string) {
   const [pendingRevealed, setPendingRevealed] = useState<boolean | undefined>(undefined);
   const [typing, setTyping] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [company, setCompany] = useState<CompanyView | null>(null);
 
   const rowRef = useRef<PresenterRow | null>(null);
   const pendingRef = useRef<Pending>(EMPTY);
@@ -244,6 +247,22 @@ export function usePresenterSession(id: string) {
     }
   }, [serverInputs]);
 
+  // Firma rozmówcy: ładujemy, gdy sesja ją dostaje lub zmienia (Realtime przysyła nowe company_id).
+  const companyId = row?.companyId ?? null;
+  useEffect(() => {
+    if (!companyId) {
+      setCompany(null);
+      return;
+    }
+    let active = true;
+    loadCompany(companyId)
+      .then((c) => active && setCompany(c))
+      .catch(() => active && setOffline(true));
+    return () => {
+      active = false;
+    };
+  }, [companyId]);
+
   const inputs = useMemo<SessionInputs>(() => ({ ...row?.inputs, ...pending.inputs }), [row, pending.inputs]);
   const params = useMemo<CalcParams | null>(
     () => (row ? { ...row.params, ...pending.params } : null),
@@ -256,6 +275,7 @@ export function usePresenterSession(id: string) {
     status,
     offline,
     row,
+    company,
     inputs,
     params,
     mixKh,

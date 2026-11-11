@@ -1,4 +1,9 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { CompanyBar } from '../company/CompanyBar';
+import { CompanyCard } from '../company/CompanyCard';
+import type { CompanyView } from '../company/companyView';
+import { NipStep } from '../company/NipStep';
 import { displayValue, isDefaultValue } from './fields';
 import { minSec, nf, zl } from './format';
 import { pickMix, toCalcInputs, type GuestResult, type GuestInputKey } from './guestView';
@@ -26,7 +31,10 @@ function GuestMessage({ title, text }: { title: string; text: string }) {
 }
 
 function GuestSession({ token }: { token: string }) {
-  const { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply } = useGuestSession(token);
+  const { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh } = useGuestSession(token);
+  // Firma tuż po wyszukaniu — pokazujemy kartę „Czy to Twoja firma?”, zanim rozmówca przejdzie do formularza.
+  const [confirmCompany, setConfirmCompany] = useState<CompanyView | null>(null);
+  const [changingNip, setChangingNip] = useState(false);
 
   if (status === 'loading') return <p className="center-note">Wczytywanie…</p>;
   if (status === 'not_found') {
@@ -45,6 +53,15 @@ function GuestSession({ token }: { token: string }) {
 
   const dataComplete = toCalcInputs(inputs) !== null;
 
+  const company = view.company;
+  const step: 'nip' | 'confirm' | 'form' = !company || changingNip ? 'nip' : confirmCompany ? 'confirm' : 'form';
+
+  const onCompanyFound = (found: CompanyView) => {
+    setChangingNip(false);
+    setConfirmCompany(found);
+    void refresh();
+  };
+
   return (
     <main className="guest">
       {offline && (
@@ -55,7 +72,31 @@ function GuestSession({ token }: { token: string }) {
       <div className="pane">
         <div className="pane-body">
           <p className="brand">Ile czasu odzyska Twoje biuro?</p>
+
+          {step === 'nip' && (
+            <>
+              <p className="lead">Zacznijmy od numeru NIP Twojej firmy.</p>
+              <NipStep token={token} onFound={onCompanyFound} onCancel={company ? () => setChangingNip(false) : undefined} />
+            </>
+          )}
+
+          {step === 'confirm' && confirmCompany && (
+            <CompanyCard
+              token={token}
+              company={confirmCompany}
+              onConfirm={() => setConfirmCompany(null)}
+              onChangeNip={() => {
+                setConfirmCompany(null);
+                setChangingNip(true);
+              }}
+              onFound={onCompanyFound}
+            />
+          )}
+
+          {step === 'form' && company && (
+          <>
           <p className="lead">Kilka podstawowych danych, wystarczą przybliżone wartości.</p>
+          <CompanyBar company={company} onChangeNip={() => setChangingNip(true)} />
 
           <div className="row3">
             <NumberField {...field('kh')} label="Klienci – pełna księgowość" placeholder="np. 100" />
@@ -129,6 +170,8 @@ function GuestSession({ token }: { token: string }) {
 
           {view.revealed && view.result && (
             <ResultCard result={view.result} mixKh={mixKh} reply={reply} onMix={setMix} onReply={setReply} />
+          )}
+          </>
           )}
         </div>
       </div>

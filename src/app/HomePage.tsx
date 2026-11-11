@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useOrgs } from '../org/OrgProvider';
+import { formatNip } from '../company/companyView';
 import { CopyButton } from '../session/CopyButton';
 import { formatDateTime, guestLink, statusLabel } from '../session/sessionFormat';
 import { createSession, listMySessions, type SessionListItem } from '../session/sessionsApi';
@@ -86,6 +87,9 @@ export function HomePage() {
                 <Link to={`/session/${s.id}`} className="session-date">
                   {formatDateTime(s.createdAt)}
                 </Link>
+                <span className="session-company">
+                  {s.companyName ?? (s.companyNip ? `NIP ${formatNip(s.companyNip)}` : 'czeka na NIP')}
+                </span>
                 <span className="badge">{statusLabel(s.status)}</span>
                 {s.revealed && <span className="badge badge-accent">Wynik odsłonięty</span>}
               </div>

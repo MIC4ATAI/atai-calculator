@@ -7,6 +7,9 @@ export interface SessionListItem {
   status: SessionStatus;
   revealed: boolean;
   createdAt: string;
+  /** Firma rozmówcy (nazwa z GUS lub null) i jej NIP; oba null = rozmówca jeszcze nie podał NIP-u. */
+  companyName: string | null;
+  companyNip: string | null;
 }
 
 interface SessionRow {
@@ -15,6 +18,7 @@ interface SessionRow {
   status: string;
   revealed: boolean;
   created_at: string;
+  company?: { name: string | null; nip: string } | null;
 }
 
 function toItem(row: SessionRow): SessionListItem {
@@ -24,10 +28,12 @@ function toItem(row: SessionRow): SessionListItem {
     status: toSessionStatus(row.status),
     revealed: row.revealed,
     createdAt: row.created_at,
+    companyName: row.company?.name ?? null,
+    companyNip: row.company?.nip ?? null,
   };
 }
 
-const COLUMNS = 'id, token, status, revealed, created_at';
+const COLUMNS = 'id, token, status, revealed, created_at, company:companies(name, nip)';
 
 /** Własne sesje konsultanta w wybranej organizacji, od najnowszej. */
 export async function listMySessions(orgId: string, userId: string): Promise<SessionListItem[]> {

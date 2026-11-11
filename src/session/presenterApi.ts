@@ -1,4 +1,5 @@
 import type { CalcParams } from '../calc/calculator';
+import { toCompanyView, type CompanyView } from '../company/companyView';
 import type { Json } from '../lib/database.types';
 import { supabase } from '../lib/supabase';
 import { resolveParams, sanitizeInputs, type SessionInputs } from './guestView';
@@ -16,6 +17,8 @@ export interface PresenterRow {
   params: CalcParams;
   mixKh: number | null;
   reply: string;
+  /** Firma przypięta do sesji przez rozmówcę (NIP + dane z GUS); null = jeszcze brak NIP-u. */
+  companyId: string | null;
 }
 
 /** Kształt wiersza z bazy i z payloadu Realtime (postgres_changes). */
@@ -29,9 +32,10 @@ export interface RawSessionRow {
   params: unknown;
   mix_kh: number | null;
   reply: string;
+  company_id: string | null;
 }
 
-const COLUMNS = 'id, token, status, revealed, created_at, inputs, params, mix_kh, reply';
+const COLUMNS = 'id, token, status, revealed, created_at, inputs, params, mix_kh, reply, company_id';
 
 export function toPresenterRow(raw: RawSessionRow): PresenterRow {
   return {
@@ -44,6 +48,7 @@ export function toPresenterRow(raw: RawSessionRow): PresenterRow {
     params: resolveParams(raw.params),
     mixKh: raw.mix_kh,
     reply: raw.reply,
+    companyId: raw.company_id,
   };
 }
 
@@ -72,4 +77,15 @@ export async function updateSession(id: string, fields: SessionUpdate): Promise<
     .update(params ? { ...rest, params: params as unknown as NonNullable<Json> } : rest)
     .eq('id', id);
   if (error) throw error;
+}
+
+/** Firma sesji (RLS: widoczna dla konsultanta tej sesji i dla admina organizacji). */
+export async function loadCompany(companyId: string): Promise<CompanyView | null> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('nip, regon, name, street, building_no, unit_no, postal_code, city, voivodeship, gus_type, gus_status, fetched_at')
+    .eq('id', companyId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toCompanyView(data) : null;
 }

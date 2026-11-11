@@ -173,3 +173,43 @@ describe('pickMix', () => {
     expect(pickMix(result(), 7.9).kh).toBe(7);
   });
 });
+
+describe('buildGuestView — firma rozmówcy', () => {
+  const company = {
+    nip: '5261040567',
+    regon: '011417295',
+    name: 'T-MOBILE POLSKA SPÓŁKA AKCYJNA',
+    street: 'ul. Test-Krucza',
+    building_no: '12',
+    unit_no: null,
+    postal_code: '02-674',
+    city: 'Warszawa',
+    voivodeship: 'MAZOWIECKIE',
+    gus_type: 'P',
+    gus_status: 'found',
+    fetched_at: '2026-11-11T12:00:00Z',
+  };
+
+  it('bez firmy: company = null (rozmówca jeszcze nie podał NIP-u)', () => {
+    expect(buildGuestView(row()).company).toBeNull();
+    expect(buildGuestView(row({ company: null })).company).toBeNull();
+  });
+
+  it('z firmą: widok z nazwą, adresem i sformatowanym NIP-em', () => {
+    expect(buildGuestView(row({ company })).company).toEqual({
+      nip: '526-104-05-67',
+      name: 'T-MOBILE POLSKA SPÓŁKA AKCYJNA',
+      address: 'ul. Test-Krucza 12, 02-674 Warszawa',
+      gusStatus: 'found',
+    });
+  });
+
+  it('firma jest widoczna niezależnie od odsłonięcia wyniku', () => {
+    expect(buildGuestView(row({ company, revealed: false })).company).not.toBeNull();
+  });
+
+  it('nie ujawnia REGON-u ani surowych pól firmy', () => {
+    const json = JSON.stringify(buildGuestView(row({ company })));
+    for (const hidden of ['011417295', 'regon', 'gus_raw', 'fetched_at', 'MAZOWIECKIE']) expect(json).not.toContain(hidden);
+  });
+});

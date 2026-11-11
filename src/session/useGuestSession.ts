@@ -170,5 +170,5 @@ export function useGuestSession(token: string) {
   const mixKh = pending.mixKh ?? view?.mixKh ?? null;
   const reply = pending.reply ?? view?.reply ?? '';
 
-  return { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply };
+  return { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh };
 }

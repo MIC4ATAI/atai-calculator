@@ -18,6 +18,7 @@ import {
   type CalcResult,
   type MixResult,
 } from '../calc/calculator.ts';
+import { toCompanyView, type CompanyRow, type CompanyView } from '../company/companyView.ts';
 
 /** Pola, które wpisuje rozmówca (kształt UI, jak w prototypie; efektywność w %). */
 export const GUEST_INPUT_KEYS = ['kh', 'kpir', 'prac', 'przychod', 'koszty', 'ef', 'wspCzas', 'wspCena'] as const;
@@ -171,6 +172,8 @@ export interface SessionRow {
   revealed: boolean;
   mix_kh: number | null;
   reply: string;
+  /** Firma przypięta do sesji (z GUS lub sam NIP); brak = rozmówca jeszcze nie podał NIP-u. */
+  company?: CompanyRow | null;
 }
 
 export interface GuestView {
@@ -181,6 +184,8 @@ export interface GuestView {
   reply: string;
   /** Wynik tylko po odsłonięciu przez konsultanta i tylko przy poprawnych danych. */
   result: GuestResult | null;
+  /** Firma rozmówcy w postaci bezpiecznej do pokazania (nazwa, adres, NIP); null = jeszcze brak NIP-u. */
+  company: CompanyView | null;
 }
 
 export function buildGuestView(row: SessionRow): GuestView {
@@ -191,6 +196,7 @@ export function buildGuestView(row: SessionRow): GuestView {
     mixKh: row.mix_kh,
     reply: row.reply,
     result: row.revealed ? buildGuestResult(inputs, resolveParams(row.params)) : null,
+    company: row.company ? toCompanyView(row.company) : null,
   };
 }
 
