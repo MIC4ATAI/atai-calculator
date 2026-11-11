@@ -5,6 +5,7 @@ import { FollowUpPage } from './followup/FollowUpPage';
 import { AuthProvider } from './auth/AuthProvider';
 import { LoginPage } from './auth/LoginPage';
 import { RequireAuth } from './auth/RequireAuth';
+import { NotificationsPage } from './profile/NotificationsPage';
 import { OrgProvider } from './org/OrgProvider';
 import { OrgSelectPage } from './org/OrgSelectPage';
 import { RequireOrg } from './org/RequireOrg';
@@ -26,6 +27,7 @@ export function App() {
                 <Route path="/app" element={<HomePage />} />
                 <Route path="/session/:id" element={<SessionPage />} />
                 <Route path="/session/:id/follow-up" element={<FollowUpPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
               </Route>
             </Route>
           </Route>

@@ -18,6 +18,7 @@ import { buildGuestView, type SessionRow } from '../../../src/session/guestView.
 import { admin } from '../_shared/admin.ts';
 import { loadDeliverySummary } from '../_shared/cta.ts';
 import { handleNonPost, json, readJsonBody } from '../_shared/http.ts';
+import { dispatchInBackground } from '../_shared/notify.ts';
 
 // Kolumny firmy potrzebne do widoku rozmówcy (surowa odpowiedź GUS nie jest wybierana).
 const COMPANY_COLUMNS =
@@ -82,6 +83,10 @@ Deno.serve(async (req) => {
 
     const view = await loadView(request.token);
     if (!view) return json(404, { error: 'not_found' });
+    // Powrót, zmiana danych i przywrócenie mogły dopisać alerty do outboxu: dostarczamy je w tle, po odpowiedzi.
+    if ((request.action === 'get' && request.visit) || request.action === 'patch' || request.action === 'restore') {
+      dispatchInBackground();
+    }
     return json(200, { view });
   } catch (e) {
     // Szczegółów nie zwracamy rozmówcy — tylko do logów funkcji.

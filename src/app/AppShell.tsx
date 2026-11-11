@@ -17,6 +17,7 @@ export function AppShell() {
         </div>
         <nav className="top-actions">
           {orgs.length > 1 && <Link to="/org">Zmień organizację</Link>}
+          <Link to="/notifications">Powiadomienia</Link>
           <span className="sub">{user?.email}</span>
           <button type="button" onClick={() => void signOut()}>
             Wyloguj

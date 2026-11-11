@@ -350,3 +350,16 @@ na liście sesji) zestawia w trzech kolumnach stan z rozmowy (snapshot), ostatni
 policzone przez `src/calc`, różnice godzin, klientów i przychodu, zmienione pola podświetlone) i zmiany po rozmowie
 pogrupowane w wizyty. Dane czyta RLS (snapshot, `calc_events` po zamrożeniu, `session_visits`), a widok odświeża się
 na żywo po każdej zmianie wiersza sesji (nowa wizyta „dotyka” sesji). Logika: `src/followup/presenterView.ts`.
+
+Powiadomienia (krok 3.5, `src/notify/`): alerty z `notification_outbox` są dostarczane do webhooka n8n z Edge Function
+`guest-session` w tle (`EdgeRuntime.waitUntil`), po odpowiedzi dla klienta, przy otwarciu strony z `visit`, zmianie
+danych i przywróceniu stanu; zaległe wpisy wracają przy kolejnym takim żądaniu. Ładunek to MINIMUM + link (zdarzenie,
+organizacja, imię konsultanta, adresat, link do follow-upu, gotowy tekst; bez firmy, NIP-u, e-maila i wartości).
+Żądanie niesie nagłówki `X-Timestamp` (sekundy, tylko cyfry), `X-Event-Id` (do deduplikacji u odbiorcy) i `X-Signature`
+= `sha256=` + HMAC-SHA256(`N8N_WEBHOOK_SECRET`, `<timestamp>.<body>`); odbiorca powinien odrzucać stare znaczniki
+(np. starsze niż 5 min) i sprawdzać, że znacznik to same cyfry. Dostarczanie jest „co najmniej raz”: sukces to 2xx, wszystko inne
+to ponowienie (do 5 prób, potem `failed`); brak adresata w profilu zamyka wpis jako `skipped`. Pusty `N8N_WEBHOOK_URL`
+wyłącza wysyłkę (alerty czekają w outboxie); http jest dopuszczone tylko dla localhost i host.docker.internal, sekret
+ma min. 16 znaków, przekierowania nie są śledzone. Adresata ustawia konsultant na stronie „Powiadomienia”
+(`/notifications`): identyfikator czatu Telegram, pusty = wyłączone. Brak osobnej funkcji `dispatch-notifications` na
+cron — na liście „przed produkcją” (konsultant, do którego nikt nie wraca, nie wygeneruje ponowień zaległych wpisów).
