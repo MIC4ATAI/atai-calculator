@@ -272,3 +272,26 @@ input[type='text'][aria-invalid='true'] { border-color: var(--danger); }
 .lead-block p { margin: 2px 0 0; }
 .lead-ok { border-color: #cfe3db; background: var(--accent-soft); }
 .lead-warn { border-color: #f0d9bf; background: var(--warn-soft); }
+
+/* ---- Follow-up: stały pasek „Wynik z rozmowy” po stronie rozmówcy ---- */
+.followup-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border: 1px solid #cfe3db;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.followup-bar p { margin: 0; }
+.followup-main { font-size: 15px; }
+.followup-label { color: var(--accent); }
+.followup-date { color: var(--muted); font-size: 13px; }
+.followup-now { margin-top: 4px; font-size: 14px; }
+.followup-same { color: var(--muted); }
+.followup-note { margin-top: 4px; font-size: 13px; color: var(--warn); }
+.followup-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.followup-actions button { padding: 6px 12px; font-size: 14px; }
+.followup-error { color: var(--danger); font-size: 13px; }

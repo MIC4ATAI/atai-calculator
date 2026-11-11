@@ -5,6 +5,7 @@ import { CompanyBar } from '../company/CompanyBar';
 import { CompanyCard } from '../company/CompanyCard';
 import type { CompanyView } from '../company/companyView';
 import { NipStep } from '../company/NipStep';
+import { FollowUpBar } from '../followup/FollowUpBar';
 import { displayValue, isDefaultValue } from './fields';
 import { minSec, nf, zl } from './format';
 import { pickMix, toCalcInputs, type GuestResult, type GuestInputKey } from './guestView';
@@ -32,7 +33,7 @@ function GuestMessage({ title, text }: { title: string; text: string }) {
 }
 
 function GuestSession({ token }: { token: string }) {
-  const { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh } = useGuestSession(token);
+  const { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh, restore } = useGuestSession(token);
   // Firma tuż po wyszukaniu — pokazujemy kartę „Czy to Twoja firma?”, zanim rozmówca przejdzie do formularza.
   const [confirmCompany, setConfirmCompany] = useState<CompanyView | null>(null);
   const [changingNip, setChangingNip] = useState(false);
@@ -70,6 +71,7 @@ function GuestSession({ token }: { token: string }) {
           Brak połączenia — ponawiam. Twoje wpisy są zachowane.
         </p>
       )}
+      {step === 'form' && view.followUp && <FollowUpBar followUp={view.followUp} onRestore={restore} />}
       <div className="pane">
         <div className="pane-body">
           <p className="brand">Ile czasu odzyska Twoje biuro?</p>

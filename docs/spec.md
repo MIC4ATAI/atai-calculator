@@ -337,3 +337,10 @@ wizyty trafiają osobno, żeby nie wyglądały na działania klienta). Klient do
 miks, datę i wersję, bez kosztów i cichych założeń; wynik ukryty przez konsultanta ukrywa też follow-up. Żądania
 rozmówcy: `get` z flagą `visit` (tylko przy otwarciu strony) i akcja `restore` (bez danych, wyłącznie ze snapshotu).
 
+
+Widok klienta po CTA (krok 3.3): `guest-session` czyta snapshot do `GuestView.followUp`, rejestruje wizytę przy `get` z
+flagą `visit` (błąd rejestracji tylko się loguje, odczyt się nie psuje) i obsługuje `restore` (404 nieznana sesja,
+409 `no_snapshot`). Strona wysyła `visit` przy pierwszym udanym wczytaniu i przy każdym powrocie do karty; odświeżenia
+Realtime i odzyskanie łączności wizyty nie tworzą. Stały pasek „Wynik z rozmowy” pokazuje liczby ze snapshotu, bieżącą
+symulację z różnicą i przycisk „Wróć do stanu z rozmowy” (aktywny tylko przy zmianie; porzuca niezapisane wpisy i czeka
+na zapis w drodze, żeby go nie nadpisać). Test e2e: `src/e2e/followup.e2e.test.ts`.

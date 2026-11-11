@@ -37,6 +37,9 @@ export function useGuestSession(token: string) {
   const flushTimer = useRef<number | undefined>(undefined);
   const refreshTimer = useRef<number | undefined>(undefined);
   const hasViewRef = useRef(false);
+  // Pierwsze udane wczytanie i każdy powrót do karty zgłaszamy serwerowi jako „wizytę” (powrót po zamrożeniu stanu).
+  // Odświeżenia z Realtime ani ponowienia po błędzie wizyty nie tworzą.
+  const visitPending = useRef(true);
 
   const handleFailure = useCallback((kind: 'not_found' | 'unavailable') => {
     if (kind === 'not_found') {
@@ -55,8 +58,10 @@ export function useGuestSession(token: string) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const r: GuestCallResult = await callGuest({ action: 'get', token });
+    const visit = visitPending.current;
+    const r: GuestCallResult = await callGuest(visit ? { action: 'get', token, visit: true } : { action: 'get', token });
     if (!r.ok) return handleFailure(r.kind);
+    visitPending.current = false;
     // Własne zmiany w drodze mają pierwszeństwo — po ich zapisie i tak przyjdzie świeży stan.
     if (inFlight.current || hasPending(pendingRef.current)) {
       setOffline(false);
@@ -135,6 +140,25 @@ export function useGuestSession(token: string) {
   const setMix = useCallback((kh: number) => queue((p) => ({ ...p, mixKh: kh }), MIX_DEBOUNCE_MS), [queue]);
   const setReply = useCallback((text: string) => queue((p) => ({ ...p, reply: text }), REPLY_DEBOUNCE_MS), [queue]);
 
+  /**
+   * „Wróć do stanu z rozmowy”: serwer przywraca dane i miks ze snapshotu. Niezapisane lokalne wpisy porzucamy
+   * (przywrócenie ma je zastąpić), a zapis w drodze dokańczamy najpierw, żeby nie nadpisał przywróconego stanu.
+   */
+  const restore = useCallback(async (): Promise<boolean> => {
+    window.clearTimeout(flushTimer.current);
+    pendingRef.current = EMPTY;
+    setPending(EMPTY);
+    for (let i = 0; i < 100 && inFlight.current; i += 1) await new Promise((r) => setTimeout(r, 50));
+
+    const r = await callGuest({ action: 'restore', token });
+    if (r.ok) {
+      applyView(r.view);
+      return true;
+    }
+    if (r.kind === 'not_found') setStatus('not_found');
+    return false;
+  }, [token, applyView]);
+
   // Pierwsze wczytanie + Realtime: ping „changed” z triggera bazy → odświeżenie widoku.
   useEffect(() => {
     let active = true;
@@ -151,15 +175,19 @@ export function useGuestSession(token: string) {
       });
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState !== 'visible') return;
+      visitPending.current = true; // klient wrócił do karty
+      void refresh();
     };
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('online', onVisible);
+    // Odzyskanie łączności nie jest powrotem klienta — tylko odświeżenie.
+    const onOnline = () => void refresh();
+    window.addEventListener('online', onOnline);
 
     return () => {
       active = false;
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('online', onVisible);
+      window.removeEventListener('online', onOnline);
       window.clearTimeout(refreshTimer.current);
       window.clearTimeout(flushTimer.current);
       void supabase.removeChannel(channel);
@@ -170,5 +198,5 @@ export function useGuestSession(token: string) {
   const mixKh = pending.mixKh ?? view?.mixKh ?? null;
   const reply = pending.reply ?? view?.reply ?? '';
 
-  return { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh };
+  return { status, offline, view, inputs, mixKh, reply, setField, setMix, setReply, refresh, restore };
 }

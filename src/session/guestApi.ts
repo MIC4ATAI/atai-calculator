@@ -7,7 +7,9 @@ import { supabase } from '../lib/supabase';
 import type { GuestView, SessionInputs } from './guestView';
 
 export type GuestCall =
-  | { action: 'get'; token: string }
+  /** `visit: true` — klient właśnie otworzył stronę albo wrócił do karty (rejestruje powrót po CTA). */
+  | { action: 'get'; token: string; visit?: true }
+  | { action: 'restore'; token: string }
   | { action: 'patch'; token: string; patch: SessionInputs; mixKh?: number; reply?: string };
 
 export type GuestCallResult =

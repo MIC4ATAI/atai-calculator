@@ -39,20 +39,26 @@ describe('lookup-company', () => {
     expect(r.body.company.address).toBe('ul. Test-Krucza 12, 02-674 Warszawa');
   });
 
-  it('ten sam NIP drugi raz korzysta z pamięci podręcznej (GUS nie jest pytany, fetched_at bez zmian)', async (ctx) => {
-    const session = await newSession('lookup-cache');
-    const first = await lookup(session.token, NIP_TMOBILE);
-    if (first.body?.company?.gusStatus !== 'found') return ctx.skip();
-
+  it('NIP z pamięci podręcznej: GUS nie jest pytany, dane i fetched_at bez zmian (losowy NIP, którego GUS nie zna)', async () => {
+    // Test izolowany od innych plików e2e (równoległych): własna firma w cache, nieznana rejestrowi.
+    const [nip] = randomValidNips(1);
+    const { error } = await admin
+      .from('companies')
+      .insert({ org_id: MITAX_ORG, nip: nip!, name: 'FIRMA Z CACHE', city: 'Łódź', gus_status: 'found' });
+    expect(error).toBeNull();
     const read = async () =>
-      (await admin.from('companies').select('fetched_at').eq('org_id', MITAX_ORG).eq('nip', NIP_TMOBILE).single()).data?.fetched_at;
+      (await admin.from('companies').select('fetched_at').eq('org_id', MITAX_ORG).eq('nip', nip!).single()).data?.fetched_at;
     const before = await read();
     await sleep(1_100);
 
-    const second = await callFn('lookup-company', { token: session.token, nip: '526-104-05-67' }); // zapis z myślnikami
+    const session = await newSession('lookup-cache');
+    const first = await callFn('lookup-company', { token: session.token, nip: nip! });
+    expect(first).toMatchObject({ status: 200, body: { company: { name: 'FIRMA Z CACHE', gusStatus: 'found' } } });
+
+    const second = await callFn('lookup-company', { token: session.token, nip: `${nip!.slice(0, 3)}-${nip!.slice(3, 6)}-${nip!.slice(6, 8)}-${nip!.slice(8)}` });
     expect(second.status).toBe(200);
-    expect(second.body.company.name).toBe(first.body.company.name);
-    expect(await read()).toBe(before);
+    expect(second.body.company.name).toBe('FIRMA Z CACHE');
+    expect(await read()).toBe(before); // GUS nie był pytany (nie zna tego NIP-u — dostalibyśmy 422)
 
     const { data: events } = await admin.from('calc_events').select('id').eq('session_id', session.id).eq('field', 'company_id');
     expect(events).toHaveLength(1); // ta sama firma nie dopisuje zdarzenia
