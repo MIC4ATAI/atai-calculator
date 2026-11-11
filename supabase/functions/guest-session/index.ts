@@ -28,7 +28,9 @@ const COMPANY_COLUMNS =
 async function loadView(token: string) {
   const { data, error } = await admin
     .from('calc_sessions')
-    .select(`id, inputs, params, revealed, mix_kh, reply, status, company:companies(${COMPANY_COLUMNS})`)
+    .select(
+      `id, inputs, params, revealed, mix_kh, reply, status, company:companies(${COMPANY_COLUMNS}), organization:organizations(name, privacy_policy_url, cta_notice)`,
+    )
     .eq('token', token)
     .maybeSingle();
   if (error) throw error;

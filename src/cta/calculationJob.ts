@@ -155,6 +155,7 @@ export function toEmailInput(
   company: CompanyInfo,
   consultant: ConsultantInfo,
   sessionUrl: string,
+  options: { landingInvitation?: boolean } = {},
 ): EmailInput {
   return {
     organizationName: org.name,
@@ -163,6 +164,7 @@ export function toEmailInput(
     company: { name: company.name, nip: company.nip },
     summary: { godzinyDoOdzyskania: snapshot.result.godzinyDoOdzyskania, maksNowychKh: snapshot.result.maksNowychKh },
     sessionUrl,
+    landingInvitation: options.landingInvitation === true,
   };
 }
 
@@ -178,6 +180,8 @@ export interface DeliveryContext {
   /** Adres rozmówcy, już zwalidowany (parseEmail). */
   recipient: string;
   defaultSender: MailAddress;
+  /** Zaproszenie na landing page w mailu (flaga MAIL_LANDING_INVITATION); brak = wyłączone. */
+  landingInvitation?: boolean;
 }
 
 /** Składa gotową do wysłania wiadomość: mail w marce organizacji z Excelem zbudowanym ze snapshotu. */
@@ -186,7 +190,9 @@ export async function buildDeliveryMessage(ctx: DeliveryContext): Promise<MailMe
   const workbook = toWorkbookInput(snapshot, ctx.org, ctx.company, ctx.consultant);
   const bytes = await buildWorkbookBytes(workbook);
 
-  const rendered = renderCalculationEmail(toEmailInput(snapshot, ctx.org, ctx.company, ctx.consultant, guestLink(ctx.appBaseUrl, ctx.token)));
+  const rendered = renderCalculationEmail(toEmailInput(snapshot, ctx.org, ctx.company, ctx.consultant, guestLink(ctx.appBaseUrl, ctx.token), {
+      landingInvitation: ctx.landingInvitation,
+    }));
 
   return buildCalculationMessage({
     rendered,

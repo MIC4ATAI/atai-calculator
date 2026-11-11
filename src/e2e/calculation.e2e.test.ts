@@ -151,7 +151,9 @@ describe('pełny przebieg CTA jednej sesji', () => {
     expect(mail.Text).toContain(`/s/${session.token}`);
     expect(mail.Text).toContain('Ola Konsultant');
     expect(mail.HTML).toContain('lang="pl"');
-    expect(mail.Text).toContain('landing.mitax.test'); // zaproszenie na landing page organizacji (MITAX ma landingUrl)
+    // zaproszenie na landing page jest domyślnie wyłączone (flaga MAIL_LANDING_INVITATION): MITAX ma landingUrl, ale mail go nie niesie
+    expect(mail.Text).not.toContain('landing.mitax.test');
+    expect(mail.HTML).not.toContain('landing.mitax.test');
   });
 
   it('załącznik .xlsx otwiera się i zawiera stan z rozmowy (dwie zakładki, miks z suwaka)', async () => {
@@ -165,6 +167,9 @@ describe('pełny przebieg CTA jednej sesji', () => {
     expect(book.sheets[1]).toBe('Twoja symulacja');
     expect(book).toMatchObject({ kh: 100, mixKh: 10 });
     expect(book.godziny).toBeCloseTo(120.96, 2);
+    // „Twoja symulacja” ma działające formuły z zapisanymi wynikami (podgląd na telefonie nie pokaże pustych komórek)
+    expect(book.formulas.total).toBeGreaterThan(10);
+    expect(book.formulas.withCachedResult).toBe(book.formulas.total);
     expect(String(book.firma)).toContain('NIP 526-104-05-67');
   });
 

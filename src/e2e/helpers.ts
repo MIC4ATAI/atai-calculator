@@ -55,6 +55,24 @@ export async function callFn(name: string, body: unknown): Promise<FnResult> {
   return { status: res.status, body: parsed };
 }
 
+/** Wywołanie funkcji z dowolnymi nagłówkami (np. zaplanowane zadanie bazy z sekretem, bez klucza publicznego). */
+export async function callFnRaw(name: string, headers: Record<string, string>, method = 'POST'): Promise<FnResult> {
+  const res = await fetch(`${API_URL}/functions/v1/${name}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: method === 'POST' ? '{}' : undefined,
+    signal: AbortSignal.timeout(60_000),
+  });
+  const text = await res.text();
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    /* odpowiedź bez JSON-a */
+  }
+  return { status: res.status, body: parsed };
+}
+
 // ---------------------------------------------------------------------------
 // Sesje
 // ---------------------------------------------------------------------------
@@ -156,6 +174,8 @@ export interface WorkbookSummary {
   mixKh: unknown;
   /** Wiersz z firmą w nagłówku zakładki. */
   firma: unknown;
+  /** Zakładka „Twoja symulacja”: liczba komórek z formułą i ilu z nich zapisano wartość buforowaną (podglądy bez przeliczania). */
+  formulas: { total: number; withCachedResult: number };
 }
 
 /** Otwiera załącznik tak jak Excel i zwraca kluczowe wartości z zakładki „Kalkulacja z rozmowy”. */
@@ -170,7 +190,19 @@ export async function readWorkbook(bytes: Uint8Array): Promise<WorkbookSummary> 
     });
     return found;
   };
+  let total = 0;
+  let withCachedResult = 0;
+  wb.worksheets[1]?.eachRow((row) =>
+    row.eachCell((cell) => {
+      const v = cell.value as { formula?: string; result?: unknown } | null;
+      if (v && typeof v === 'object' && typeof v.formula === 'string') {
+        total += 1;
+        if (v.result !== undefined && v.result !== null) withCachedResult += 1;
+      }
+    }),
+  );
   return {
+    formulas: { total, withCachedResult },
     sheets: wb.worksheets.map((w) => w.name),
     kh: byLabel('Klienci – pełna księgowość (KH)'),
     godziny: Number(byLabel('Godziny do odzyskania / mies.')),

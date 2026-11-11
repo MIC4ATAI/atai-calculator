@@ -33,6 +33,7 @@ const base = (over: Partial<EmailInput> = {}): EmailInput => ({
   company: { name: 'T-MOBILE POLSKA SPÓŁKA AKCYJNA', nip: '5261040567' },
   summary: { godzinyDoOdzyskania: 120.96, maksNowychKh: 20 },
   sessionUrl: SESSION_URL,
+  landingInvitation: true, // te testy opisują wersję z włączoną flagą MAIL_LANDING_INVITATION
   ...over,
 });
 
@@ -108,6 +109,25 @@ describe('renderCalculationEmail — marka minimalna (AT AI)', () => {
     expect(mail.html).not.toContain('<img');
     expect(mail.html).toContain('>AT AI Solutions</span>');
     expect(mail.html).toContain('#1f6f5c');
+  });
+
+  it('flaga wyłączona (domyślnie): brak zaproszenia i brak linku, choć organizacja ma landingUrl', () => {
+    for (const off of [undefined, false]) {
+      const m = renderCalculationEmail(base({ landingInvitation: off }));
+      expect(m.text).not.toContain(LANDING_INVITATION_TEXT);
+      expect(m.text).not.toContain('landing.mitax.test');
+      expect(m.html).not.toContain(escapeHtml(LANDING_INVITATION_TEXT));
+      expect(m.html).not.toContain('landing.mitax.test');
+      // reszta wiadomości bez zmian: link do sesji, podpis, stopka
+      expect(m.text).toContain(SESSION_URL);
+      expect(m.text).toContain('Pozdrawiamy,');
+      expect(m.text).toContain(ONE_TIME_NOTICE_TEXT);
+    }
+  });
+
+  it('flaga włączona, ale organizacja bez landingUrl: też bez zaproszenia', () => {
+    const m = renderCalculationEmail(base({ brand: ATAI, landingInvitation: true }));
+    expect(m.text).not.toContain(LANDING_INVITATION_TEXT);
   });
 
   it('bez landing page nie ma żadnego zaproszenia', () => {

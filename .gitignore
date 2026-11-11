@@ -12,3 +12,5 @@ supabase/.branches/
 *.tsbuildinfo
 coverage/
 .claude/settings.local.json
+supabase/functions/_vendor/
+.tmp-*.eszip

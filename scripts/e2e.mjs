@@ -61,6 +61,7 @@ try {
 // tylko procesowi testów; sekret nie jest wypisywany. Bez tej konfiguracji scenariusze powiadomień są pomijane.
 let webhookPort = '';
 let webhookSecret = '';
+let dispatchSecret = '';
 const functionsEnv = new URL('../supabase/functions/.env', import.meta.url);
 if (existsSync(functionsEnv)) {
   const vars = Object.fromEntries(
@@ -70,6 +71,7 @@ if (existsSync(functionsEnv)) {
       .filter(Boolean)
       .map((m) => [m[1], m[2]]),
   );
+  dispatchSecret = vars.DISPATCH_SECRET ?? '';
   try {
     const url = new URL(vars.N8N_WEBHOOK_URL ?? '');
     if (['host.docker.internal', 'localhost', '127.0.0.1'].includes(url.hostname) && url.port && vars.N8N_WEBHOOK_SECRET) {
@@ -96,6 +98,7 @@ const child = spawn('npx', ['vitest', 'run', '--config', 'vitest.e2e.config.ts',
     E2E_SERVICE_ROLE_KEY: serviceRoleKey,
     E2E_MAILPIT_URL: mailpitUrl,
     ...(webhookPort ? { E2E_WEBHOOK_PORT: webhookPort, E2E_WEBHOOK_SECRET: webhookSecret } : {}),
+    ...(dispatchSecret ? { E2E_DISPATCH_SECRET: dispatchSecret } : {}),
   },
 });
 child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 1)));

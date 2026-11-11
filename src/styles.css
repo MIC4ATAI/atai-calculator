@@ -316,3 +316,9 @@ input[type='text'][aria-invalid='true'] { border-color: var(--danger); }
 .followup-changes li { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; }
 .followup-time { color: var(--muted); font-size: 12px; padding-top: 2px; }
 .followup-visit h3 { text-transform: none; letter-spacing: 0; color: var(--ink); }
+
+/* ---- Klauzula informacyjna RODO przy CTA ---- */
+.privacy-notice { margin: 4px 0 14px; padding: 10px 12px; border-radius: 10px; background: #f1f2ef; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.privacy-notice p { margin: 0 0 6px; }
+.privacy-notice p:last-child { margin-bottom: 0; }
+.privacy-notice a { color: var(--accent); }
