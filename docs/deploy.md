@@ -18,7 +18,7 @@ stronie serwera, żadnych sekretów w repozytorium.**
 | **Funkcje** | 4 aktywne (wersja 1, `verify_jwt = false`): `guest-session`, `lookup-company`, `request-calculation`, `dispatch-notifications`; po kompresji 0,8–1,1 MB |
 | **Cron powiadomień** | zadanie `dispatch-notifications` aktywne (co minutę), **Vault pusty** (brak `dispatch_url` i `dispatch_secret`), więc nic nie wywołuje funkcji; do uzupełnienia razem z n8n |
 | **Sekrety funkcji (nazwy)** | ustawione: `MAILERSEND_API_TOKEN`, `MAIL_FROM_DEFAULT`, `MAIL_TRANSPORT`, `APP_BASE_URL`, `MAIL_LANDING_INVITATION`, `DISPATCH_SECRET`; **nieustawione:** `GUS_API_KEY`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `MAIL_FROM_NAME` |
-| **Auth** | Site URL i Redirect URLs na domenę produkcyjną i `*.vercel.app`; własny SMTP (MailerSend), limit 30 maili/h; cooldown 1 min na adres; rejestracja wyłączona, konta zakłada operator |
+| **Auth** | Site URL i Redirect URLs na domenę produkcyjną i `*.vercel.app`; własny SMTP (MailerSend), limit 30 maili/h; cooldown 1 min na adres; szablon Magic Link po polsku (temat i treść, potwierdzone mailem); rejestracja wyłączona, konta zakłada operator |
 | **Vercel** | projekt `atai-calculator`, gałąź produkcyjna `production`; domena `atai.mitax.pl` (rekord A w OVH, TXT z SPF zachowany) oraz `atai-calculator.vercel.app`; zmienne `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_APP_URL`; zbędne zmienne integracji (`POSTGRES_*`, klucze serwerowe) usunięte; ochrona wdrożeń obejmuje tylko podglądy |
 | **Dane** | 1 organizacja (MITAX), 1 konto w roli `owner`; bez telefonu w profilu i **bez linku do polityki prywatności** |
 | **Weryfikacja** | `npm run smoke` 19/19; pełna sesja od logowania do wysyłki kalkulacji przeszła na produkcji |
@@ -31,7 +31,8 @@ stronie serwera, żadnych sekretów w repozytorium.**
 - [ ] **Rotacja tokenu MailerSend:** wartość była widoczna w zapisie sesji roboczej; nowy token ustaw bez wyświetlania (`read -s`).
 - [ ] **Potwierdzenie szczegółów maila z kalkulacją:** nadawca, `Reply-To`, link z domeny produkcyjnej, załącznik `.xlsx` z działającymi formułami.
 - [ ] **n8n:** workflow, nowy `DISPATCH_SECRET` (sekrety funkcji **i** Vault jednocześnie), `N8N_WEBHOOK_*`, identyfikator czatu w profilu konsultanta.
-- [ ] Opcjonalnie: telefon w profilu konsultanta, `MAIL_FROM_NAME`, kolejne konta konsultantów (sekcja 1, pkt 5).
+- [ ] **Stopka „Delivered by MailerSend”** w mailach (zaobserwowana w mailu logowania): sprawdź w MailerSend, czy plan ją wyłącza, zanim klienci dostaną maile z kalkulacją.
+- [ ] Opcjonalnie: telefon w profilu konsultanta, `MAIL_FROM_NAME`, nazwa nadawcy w SMTP Supabase (obecnie „Kalkulator”), kolejne konta konsultantów (sekcja 1, pkt 5).
 
 ## 0. Wymagania
 
