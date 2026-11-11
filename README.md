@@ -32,8 +32,11 @@ supabase db reset
 supabase status
 cp .env.example .env
 
-# 4. W osobnych terminalach:
-supabase functions serve   # Edge Function guest-session (dostęp rozmówcy po tokenie)
+# 4. Konfiguracja funkcji (GUS testowy + poczta do lokalnego Mailpita). Plik jest w .gitignore.
+cp supabase/functions/.env.example supabase/functions/.env
+
+# 5. W osobnych terminalach:
+supabase functions serve   # Edge Functions: guest-session, lookup-company, request-calculation
 npm run dev                # aplikacja: http://127.0.0.1:5173
 ```
 
@@ -65,15 +68,41 @@ To konta wyłącznie lokalne i testowe.
    → 121 h, 36 min na kliencie KH, +20 KH albo +40 KPiR. W widoku prezentera pomoże „Wypełnij przykładem”.
 3. Konsultant widzi wpisy na bieżąco i klika **Odsłoń wynik rozmówcy**; suwak miksu działa po obu stronach.
 
+### Wypróbowanie leada (etap 2)
+
+1. W widoku rozmówcy wpisz NIP z publicznej bazy testowej GUS, np. `526-104-05-67` (T-MOBILE), i potwierdź firmę.
+   Baza testowa ma stare, zanonimizowane dane; gdy GUS nie odpowie, rozmowa toczy się dalej z samym NIP-em.
+2. Wypełnij dane, a konsultant odsłania wynik. Pod wynikiem pojawia się prośba o kalkulację: podaj dowolny adres.
+3. Wysłane kalkulacje (mail z Excelem i linkiem do sesji) trafiają do lokalnego **Mailpita**:
+   http://127.0.0.1:54324 (nic nie wychodzi poza komputer). Konsultant widzi na żywo „Kalkulacja wysłana”.
+4. Stan z rozmowy jest zamrożony przy pierwszej prośbie: kolejne wysyłki (do 3) niosą ten sam stan,
+   a adres i NIP są już zablokowane.
+
+Zmienne funkcji (poczta, GUS, adres aplikacji) opisuje `supabase/functions/.env.example`. Na produkcji
+ustawiasz je przez `supabase secrets set`, nigdy w repozytorium.
+
 ## Komendy
 
 ```bash
 npm test             # testy Vitest: obliczenia (zgodność z arkuszem), logika widoków, walidacja
 npm run test:db      # testy pgTAP: RLS, niezmienność tabel, RPC (wymaga działającego supabase start)
+npm run test:e2e     # testy end-to-end etapu 2 na lokalnym stosie (patrz niżej)
 npm run typecheck    # sprawdzenie typów
 npm run build        # typecheck + build produkcyjny
 supabase db reset    # czysta baza z migracji + seed
 ```
+
+### Testy end-to-end (`npm run test:e2e`)
+
+Sprawdzają prawdziwe Edge Functions, bazę i Mailpit: NIP i GUS, CTA, zamrożenie stanu, Excel odczytany z załącznika,
+blokady i limit wysyłek. Wymagają działających `supabase start`, `supabase functions serve` i świeżej bazy z seedem
+(`supabase db reset`); skrypt sprawdza to i podpowiada, czego brakuje. Klucze lokalne pobiera sam ze
+`supabase status` i przekazuje tylko procesowi testów.
+
+Testy zapisują dane w lokalnej bazie (leady są tylko do dopisywania), więc **przed `npm run test:db` zrób
+`supabase db reset`**: testy bazy liczą wiersze na czystym stanie. Część scenariuszy czeka ok. 10 s na koniec okna
+ochrony przed podwójnym kliknięciem, a zapytania do GUS zależą od jego dostępności (wtedy asercje o danych z GUS
+są pomijane).
 
 Po zmianie schematu bazy: nowa migracja w `supabase/migrations/` (nigdy ręcznie na produkcji), a potem
 `supabase gen types typescript --local > src/lib/database.types.ts`.
@@ -84,6 +113,11 @@ Po zmianie schematu bazy: nowa migracja w `supabase/migrations/` (nigdy ręcznie
 src/calc/        logika obliczeń i testy zgodności z arkuszem (jedyne miejsce na wzory)
 src/session/     sesja na żywo: widok rozmówcy (GuestPage), prezentera (SessionPage), logika widoku
                  rozmówcy (guestView, guestRequest — współdzielona z Edge Function), formatowanie
+src/company/     NIP i firma: mapowanie GUS, widok firmy, krok „Podaj NIP”
+src/cta/         prośba o kalkulację: polityka (limity, blokady), składanie maila ze snapshotu, karta rozmówcy
+src/excel/       skoroszyt z kalkulacją (wartości + formuły „Twoja symulacja”), testy parytetu z src/calc
+src/email/       szablon maila, marka organizacji, adaptery MailerSend i Mailpit
+src/e2e/         testy end-to-end (poza `npm test`)
 src/auth/        logowanie magic linkiem
 src/org/         wybór organizacji
 src/app/         układ i lista sesji konsultanta
@@ -91,7 +125,7 @@ src/lib/         klient Supabase (tylko klucz publiczny) i wygenerowane typy baz
 supabase/
   migrations/    schemat, RLS, triggery, RPC
   tests/         testy pgTAP
-  functions/     Edge Function guest-session
+  functions/     Edge Functions: guest-session, lookup-company, request-calculation (+ _shared)
   seed.sql       dane deweloperskie (tylko lokalnie)
 ```
 

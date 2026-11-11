@@ -208,7 +208,7 @@ Odstępstwa od prototypu i pierwotnego planu:
 Nie zbudowane w etapie 1 (zgodnie z zakresem): NIP i GUS, e-mail i Excel, zamrażanie stanu przy CTA,
 powiadomienia, landing page'e organizacji, panel operatora.
 
-### Stan etapu 2 (w toku) — wyniki spików (2026-11-11)
+### Stan etapu 2 (zrobiony) — wyniki spików (2026-11-11)
 
 Trzy ryzyka techniczne sprawdzone lokalnie w Edge Runtime (kod spiku wyrzucony):
 
@@ -275,6 +275,19 @@ CTA end-to-end (`request-calculation`, krok 2.6):
 - **Reply-To:** adres logowania konsultanta (`auth.users`), pobierany administracyjnym API Auth po stronie serwera.
 - **GUS przy zimnym starcie:** pierwsze zapytanie po starcie funkcji może przekroczyć limit 8 s i skończyć się
   „GUS niedostępny”; rozmowa toczy się dalej, a ponowienie uzupełnia dane.
+
+Testy end-to-end (`npm run test:e2e`, poza `npm test`; krok 2.7):
+
+- 23 scenariusze na prawdziwych Edge Functions, bazie i Mailpicie: `lookup-company` (GUS testowy, pamięć podręczna,
+  limit 10 zmian NIP), `guest-session` (widok bez pól wewnętrznych), `request-calculation` (strażnicy, pierwsza wysyłka,
+  mail w marce, załącznik odczytany jak w Excelu, podwójne kliknięcie, zamrożenie, blokady, limit 3 z parytetem SQL).
+- Skrypt dostarcza klucze lokalne ze `supabase status` przez zmienne procesu; nic nie trafia do repozytorium.
+  Testy zostawiają dane w bazie, więc przed `npm run test:db` potrzebny jest `supabase db reset`.
+- **Znalezisko e2e (migracja 5):** dwie równoległe sesje tej samej organizacji, które jednocześnie wpisały NOWY NIP,
+  dawały jednej z nich błąd 500 (naruszenie unikalności `(org_id, nip)`). `attach_company_to_session` używa teraz
+  `on conflict do nothing` i korzysta z wiersza konkurenta.
+- Nie objęte: awaria dostawcy poczty (wymaga restartu funkcji z innym środowiskiem; pokryta testem adaptera i ręcznie),
+  prawdziwy MailerSend i widok mobilny.
 
 ## Infrastruktura
 
