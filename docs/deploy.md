@@ -16,8 +16,9 @@ stronie serwera, żadnych sekretów w repozytorium.**
 | --- | --- |
 | **Supabase** | projekt „MIC4ATAI Project” (`uaevcuzupnukhprcfmzp`), Frankfurt; 8 z 8 migracji; `pg_cron`, `pg_net`, Vault włączone; RLS na 13 tabelach |
 | **Funkcje** | 4 aktywne (wersja 1, `verify_jwt = false`): `guest-session`, `lookup-company`, `request-calculation`, `dispatch-notifications`; po kompresji 0,8–1,1 MB |
-| **Cron powiadomień** | zadanie `dispatch-notifications` aktywne (co minutę), **Vault pusty** (brak `dispatch_url` i `dispatch_secret`), więc nic nie wywołuje funkcji; do uzupełnienia razem z n8n |
-| **Sekrety funkcji (nazwy)** | ustawione: `MAILERSEND_API_TOKEN`, `MAIL_FROM_DEFAULT`, `MAIL_TRANSPORT`, `APP_BASE_URL`, `MAIL_LANDING_INVITATION`, `DISPATCH_SECRET`; **nieustawione:** `GUS_API_KEY`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`, `MAIL_FROM_NAME` |
+| **Cron powiadomień** | zadanie `dispatch-notifications` aktywne (co minutę); Vault uzupełniony 2026-11-11 skryptem `scripts/setup-dispatch-cron.sh` (`dispatch_url`, `dispatch_secret`; `DISPATCH_SECRET` w funkcjach ustawiony w tym samym przebiegu). **Sprawdzony na żywo 2026-11-11:** przy wyłączonym workflow n8n alert zostaje `pending` (404), a cron ponawia próby co minutę (z poprawnym sekretem z Vault); po włączeniu workflow następna próba crona dosłała alert bez ruchu klienta (wpis 3. próbą, ok. 1,5 min po powrocie) |
+| **n8n** | workflow „Kalkulator BR: alert o powrocie klienta” aktywny na własnym serwerze (`https://n8n.dmb24.pl/webhook/atai-followup`), podpis liczy węzeł Crypto (bez zmian na serwerze); alerty na Telegram potwierdzone na produkcji 2026-11-11 (5 alertów = 5 wpisów w outboxie, bez duplikatów) |
+| **Sekrety funkcji (nazwy)** | ustawione: `MAILERSEND_API_TOKEN`, `MAIL_FROM_DEFAULT`, `MAIL_TRANSPORT`, `APP_BASE_URL`, `MAIL_LANDING_INVITATION`, `DISPATCH_SECRET`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`; **nieustawione:** `GUS_API_KEY`, `MAIL_FROM_NAME` |
 | **Auth** | Site URL i Redirect URLs na domenę produkcyjną i `*.vercel.app`; własny SMTP (MailerSend), limit 30 maili/h; cooldown 1 min na adres; szablon Magic Link po polsku (temat i treść, potwierdzone mailem); rejestracja wyłączona, konta zakłada operator |
 | **Vercel** | projekt `atai-calculator`, gałąź produkcyjna `production`; domena `atai.mitax.pl` (rekord A w OVH, TXT z SPF zachowany) oraz `atai-calculator.vercel.app`; zmienne `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_APP_URL`; zbędne zmienne integracji (`POSTGRES_*`, klucze serwerowe) usunięte; ochrona wdrożeń obejmuje tylko podglądy |
 | **Dane** | 1 organizacja (MITAX), 1 konto w roli `owner`; bez telefonu w profilu i **bez linku do polityki prywatności** |
@@ -30,7 +31,7 @@ stronie serwera, żadnych sekretów w repozytorium.**
 - [ ] **Treści do potwierdzenia z prawnikiem** (sekcja 8): klauzula domyślna, stopka maila, zaproszenie na landing page.
 - [ ] **Rotacja tokenu MailerSend:** wartość była widoczna w zapisie sesji roboczej; nowy token ustaw bez wyświetlania (`read -s`).
 - [ ] **Potwierdzenie szczegółów maila z kalkulacją:** nadawca, `Reply-To`, link z domeny produkcyjnej, załącznik `.xlsx` z działającymi formułami.
-- [ ] **n8n:** workflow, nowy `DISPATCH_SECRET` (sekrety funkcji **i** Vault jednocześnie), `N8N_WEBHOOK_*`, identyfikator czatu w profilu konsultanta.
+- [x] **n8n i cron:** workflow aktywny, `N8N_WEBHOOK_*` ustawione, `DISPATCH_SECRET` w funkcjach i Vault, dosyłanie przez cron sprawdzone (2026-11-11). Dla każdego kolejnego konsultanta zostaje identyfikator czatu w profilu.
 - [ ] **Stopka „Delivered by MailerSend”** w mailach (zaobserwowana w mailu logowania): sprawdź w MailerSend, czy plan ją wyłącza, zanim klienci dostaną maile z kalkulacją.
 - [ ] Opcjonalnie: telefon w profilu konsultanta, `MAIL_FROM_NAME`, nazwa nadawcy w SMTP Supabase (obecnie „Kalkulator”), kolejne konta konsultantów (sekcja 1, pkt 5).
 
@@ -73,16 +74,26 @@ stronie serwera, żadnych sekretów w repozytorium.**
 
 6. **Auth:** patrz sekcja 2 (wymagane przed pierwszym logowaniem).
 7. **Funkcje:** patrz sekcja 3.
-8. **Cron powiadomień (Vault):** adres funkcji i sekret **nie są w migracji** (różnią się między środowiskami). W
-   *SQL editor* ustaw je raz:
+8. **Cron powiadomień (Vault):** adres funkcji i sekret **nie są w migracji** (różnią się między środowiskami). Ustaw je
+   skryptem, który czyta nowy sekret ze schowka i nie wypisuje go:
 
-   ```sql
-   select vault.create_secret('https://<ref>.supabase.co/functions/v1/dispatch-notifications', 'dispatch_url');
-   select vault.create_secret('<DISPATCH_SECRET>', 'dispatch_secret');   -- ten sam sekret co w sekretach funkcji (sekcja 3)
+   ```bash
+   openssl rand -hex 32 | pbcopy
+   bash scripts/setup-dispatch-cron.sh
    ```
 
-   Bez tych dwóch wartości zadanie nic nie robi. Zmiana później: `select vault.update_secret('<id>', '<nowa wartość>');`
-   (id z `select id, name from vault.secrets;`). Zadanie wywołuje funkcję tylko wtedy, gdy w outboxie coś czeka.
+   Skrypt ustawia `DISPATCH_SECRET` w sekretach funkcji (najpierw, żeby cron nie wywołał funkcji ze starym sekretem), potem
+   tworzy lub aktualizuje `dispatch_url` i `dispatch_secret` w Vault i czyści schowek. Można go uruchamiać ponownie (to
+   także procedura rotacji tego sekretu). Uwagi:
+
+   - Zapis do hostowanej bazy wymaga `--yes` (skrypt je podaje); bez niego `supabase db query` po cichu nie zapisuje.
+   - Rola tylko do odczytu nie może czytać `vault.decrypted_secrets` (`permission denied`). Sprawdzenie, że wpisy
+     istnieją: `select name, updated_at from vault.secrets;` (same nazwy, bez wartości).
+   - Bez tych dwóch wpisów zadanie nic nie robi. Zadanie wywołuje funkcję tylko wtedy, gdy w outboxie czeka wpis
+     `pending` (poniżej 5 prób, niezablokowany).
+   - Ręcznie (SQL editor) i bez skryptu: `select vault.create_secret('<adres>', 'dispatch_url');`,
+     `select vault.create_secret('<DISPATCH_SECRET>', 'dispatch_secret');`, zmiana: `select vault.update_secret('<id>', '<nowa wartość>');`
+     (id z `select id, name from vault.secrets;`). Wartość w SQL zostaje w historii edytora, dlatego skrypt jest lepszy.
 
 ## 2. Supabase Auth (panel: *Authentication*)
 
@@ -168,7 +179,7 @@ i zapisu sesji). Procedura dla macOS:
 | --- | --- | --- |
 | `MAILERSEND_API_TOKEN` | sekrety funkcji (krok 2) | jedna prawdziwa prośba o kalkulację na własny adres (CTA): mail dochodzi; 401 od MailerSend w logu funkcji = zły token |
 | `N8N_WEBHOOK_SECRET` | sekrety funkcji **i** pole Secret węzła „Oblicz podpis (HMAC)” w n8n, **jednocześnie** (inaczej n8n odrzuca podpisy: 401) | wywołanie próbne z `n8n-followup.md`, sekcja „Sprawdzenie” |
-| `DISPATCH_SECRET` | sekrety funkcji **i** Vault: `select vault.update_secret('<id>', '<nowa wartość>')` (id z `select id, name from vault.secrets;`) | `smoke` (401 bez sekretu), a po wpisie w Vault zaległy alert dochodzi bez ruchu klienta |
+| `DISPATCH_SECRET` | sekrety funkcji **i** Vault jednocześnie: `bash scripts/setup-dispatch-cron.sh` (sekret w schowku, sekcja 1, pkt 8) | `smoke` (401 bez sekretu), a po wpisie w Vault zaległy alert dochodzi bez ruchu klienta |
 | `GUS_API_KEY` | sekrety funkcji | NIP prawdziwej firmy zwraca jej prawdziwą nazwę |
 | Dane SMTP dla Auth (maile logowania) | **panel** Supabase: *Authentication → Emails → SMTP Settings* (nie sekrety funkcji) | nowy link logowania dochodzi |
 
@@ -292,8 +303,10 @@ Wykonaj jako konsultant z kontem w prawdziwej organizacji i z adresem e-mail, kt
   (jeśli flaga wyłączona), link do sesji działa; załącznik `.xlsx` otwiera się w Excelu, zakładka „Twoja symulacja” ma działające formuły.
 - [ ] Powrót klienta do linku: alert na Telegramie (jeden na wizytę), widok follow-up konsultanta pokazuje powrót i zmiany.
 - [ ] „Wróć do stanu z rozmowy” u klienta przywraca dane z rozmowy.
-- [ ] Zatrzymaj workflow n8n, wywołaj powrót klienta, uruchom workflow: zaległy alert dochodzi w ciągu ok. minuty bez ruchu
-  klienta (cron); `select status, attempts from notification_outbox order by id desc limit 5;`.
+- [x] Wyłącz workflow n8n (unpublish; webhook odpowiada 404), wywołaj powrót klienta w sesji, której ostatnia wizyta ma ponad 30 minut,
+  włącz workflow: zaległy alert dochodzi w ciągu ok. minuty bez ruchu klienta (cron); `select status, attempts from notification_outbox order by id desc limit 5;`.
+  Wykonane 2026-11-11 (wpis `sent` po 3 próbach). Uwaga: każda nieudana próba zużywa jedną z 5, więc włącz workflow od razu po wywołaniu
+  powrotu; po 5 próbach wpis dostaje `failed` i cron już go nie ponawia.
 - [ ] Logi funkcji (*Edge Functions → Logs*) bez błędów konfiguracji (`notify: błędna konfiguracja`, brak `APP_BASE_URL` itd.).
 
 ## 10. Stan weryfikacji (co sprawdzono lokalnie, a czego nie)
