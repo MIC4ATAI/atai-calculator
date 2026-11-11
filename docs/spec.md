@@ -208,6 +208,22 @@ Odstępstwa od prototypu i pierwotnego planu:
 Nie zbudowane w etapie 1 (zgodnie z zakresem): NIP i GUS, e-mail i Excel, zamrażanie stanu przy CTA,
 powiadomienia, landing page'e organizacji, panel operatora.
 
+### Stan etapu 2 (w toku) — wyniki spików (2026-11-11)
+
+Trzy ryzyka techniczne sprawdzone lokalnie w Edge Runtime (kod spiku wyrzucony):
+
+- **GUS (BIR1):** `npm:bir1@4.2.0` działa w Deno, a kontener Edge Runtime sięga publicznej bazy
+  testowej (odpowiedź w ok. 0,5 s; dane anonimizowane, np. „ul. Test-Krucza”; biblioteka ma wbudowany
+  publiczny klucz testowy). NIP spoza rejestru to `BirError` z `response.ErrorCode === "4"` — tak
+  odróżniamy „nie znaleziono” od awarii usługi, bez dopasowywania tekstu komunikatu. Działające NIP-y
+  testowe: `5261040567`, `5260250995`, `7740001454`, `5252248481`.
+- **Excel:** `npm:exceljs@4.4.0` działa w Deno: zapisuje formuły z wartościami buforowanymi (`<f>` obok
+  `<v>`), nazwy zakładek do 31 znaków, szerokości kolumn i formaty liczb.
+- **Poczta lokalnie:** kontener funkcji wysyła mail z załącznikiem przez API Mailpita pod adresem
+  `http://supabase_inbucket_<project_id>:8025/api/v1/send` (ta sama sieć Dockera); polskie znaki i
+  załącznik docierają bez zniekształceń, a załącznik da się odczytać z
+  `/api/v1/message/<id>/part/<partID>`. Adres Mailpita jest konfigurowalny (zmienna środowiskowa).
+
 ## Infrastruktura
 
 - GitHub: organizacja MIC4ATAI, repozytorium `atai-calculator` (prywatne).
