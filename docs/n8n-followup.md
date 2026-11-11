@@ -37,12 +37,14 @@ Nagłówki: `X-Timestamp` (sekundy, same cyfry), `X-Event-Id` (do deduplikacji),
 
 ## Konfiguracja
 
-1. **n8n:** ustaw zmienną środowiskową `ATAI_WEBHOOK_SECRET` (losowy sekret, min. 16 znaków) oraz
-   `NODE_FUNCTION_ALLOW_BUILTIN=crypto` (węzeł Code korzysta z modułu `crypto`). Zaimportuj
-   `docs/n8n-followup-workflow.json`, w węźle „Wyślij na Telegram” wskaż poświadczenia bota (token od @BotFather)
-   i **aktywuj workflow** (adres produkcyjny webhooka działa tylko dla aktywnego; pamięć deduplikacji też).
+1. **n8n:** zaimportuj `docs/n8n-followup-workflow.json`, w węźle „Wyślij na Telegram” wskaż poświadczenia bota
+   (token od @BotFather), a w węźle „Oblicz podpis (HMAC)” wklej w polu **Secret** wspólny sekret (losowy, min. 16 znaków;
+   do czasu wklejenia stoi tam `WKLEJ_SEKRET_TUTAJ` i workflow odrzuca wszystko z kodem 500). Potem **aktywuj workflow**
+   (adres produkcyjny webhooka działa tylko dla aktywnego; pamięć deduplikacji też). Nie są potrzebne żadne zmienne
+   środowiskowe serwera: podpis liczy wbudowany węzeł Crypto, a kod nie używa `require` ani `$env`.
+   Sekret leży w workflow (widać go w edytorze i w kopiach zapasowych n8n), więc ogranicz dostęp do tego workflow.
 2. **Supabase (funkcje):** `supabase secrets set N8N_WEBHOOK_URL=<produkcyjny adres webhooka z n8n>`
-   `N8N_WEBHOOK_SECRET=<ten sam sekret co ATAI_WEBHOOK_SECRET>`. Adres musi być https. Bez `N8N_WEBHOOK_URL`
+   `N8N_WEBHOOK_SECRET=<ten sam sekret co w węźle Crypto>` (ustaw przez schowek, nie wpisując wartości w poleceniu). Adres musi być https. Bez `N8N_WEBHOOK_URL`
    wysyłka jest wyłączona (alerty czekają w outboxie).
 3. **Konsultant:** w aplikacji, na stronie „Powiadomienia”, wpisuje identyfikator swojego czatu z botem (w grupach
    zaczyna się od minusa). Pusty identyfikator wyłącza alerty. Konsultant musi wcześniej napisać do bota, żeby bot mógł
@@ -51,11 +53,12 @@ Nagłówki: `X-Timestamp` (sekundy, same cyfry), `X-Event-Id` (do deduplikacji),
 ## Co robi workflow
 
 1. **Webhook z kalkulatora:** POST, odpowiedź zwraca węzeł „Respond to Webhook” (kod HTTP zależy od wyniku).
-2. **Sprawdź podpis i duplikaty:** odrzuca żądanie ze złym lub brakującym podpisem (401), ze znacznikiem czasu, który
-   nie jest liczbą całkowitą, albo starszym niż 5 minut (401), oraz przy braku sekretu w n8n (500). Alert, który już
+2. **Oblicz podpis (HMAC):** węzeł Crypto liczy HMAC-SHA256 z `<X-Timestamp>.<treść>` i sekretu z pola Secret.
+3. **Sprawdź podpis i duplikaty:** porównuje podpis w stałym czasie i odrzuca żądanie ze złym lub brakującym podpisem (401), ze znacznikiem czasu, który
+   nie jest liczbą całkowitą, albo starszym niż 5 minut (401), oraz przy sekrecie zastępczym lub krótszym niż 16 znaków (500). Alert, który już
    obsłużono (ten sam `X-Event-Id`), kończy się odpowiedzią 200 bez wysyłki.
-3. **Czy wysłać alert?** → **Wyślij na Telegram** (czat z pola `channel.target`, tekst `message` + `sessionUrl`)
-   → **Odpowiedz 200**. Pozostałe przypadki: odpowiedź z kodem z kroku 2.
+4. **Czy wysłać alert?** → **Wyślij na Telegram** (czat z pola `channel.target`, tekst `message` + `sessionUrl`)
+   → **Odpowiedz 200**. Pozostałe przypadki: odpowiedź z kodem z kroku 3.
 
 Odpowiedź inna niż 2xx oznacza dla kalkulatora ponowienie (do 5 prób). Dostarczanie jest „co najmniej raz”: gdy n8n
 odpowie 200, a kalkulator nie zdąży zapisać potwierdzenia, ten sam alert może przyjść ponownie. Stąd deduplikacja po
@@ -86,3 +89,14 @@ Instancja n8n działa na własnym serwerze w Polsce, więc ten etap przepływu p
 Wiadomość wysłana dalej przez bota trafia na serwery Telegrama (poza naszą kontrolą i najpewniej poza EOG): zawiera tylko
 nazwę organizacji, krótki tekst o zdarzeniu i link do widoku konsultanta, bez danych firmy ani adresu e-mail klienta. Treść
 wykonań w n8n warto okresowo czyścić (patrz `deploy.md`, sekcja 7).
+
+## Rozwiązywanie problemów
+
+- **`Module 'crypto' is disallowed`:** dotyczy starszej wersji szablonu (kod z `require('crypto')`). Obecny szablon
+  liczy podpis węzłem Crypto i nie wymaga zmian na serwerze; zaimportuj go ponownie.
+- **500 `sekret_nie_ustawiony`:** w polu Secret węzła „Oblicz podpis (HMAC)” jest znacznik albo sekret krótszy niż 16 znaków.
+- **401 `zly_podpis`:** sekret w węźle różni się od `N8N_WEBHOOK_SECRET` w Supabase (sprawdź skrót przez
+  `supabase secrets list`; pusty sekret ma skrót `e3b0c442…b855`).
+- **403 z Supabase do n8n:** jeśli przed n8n stoi Cloudflare, reguły WAF/„Bot Fight” mogą blokować POST z serwerów;
+  dodaj wyjątek dla ścieżki `/webhook/atai-followup`. Pamiętaj, że Cloudflare jest wtedy pośrednikiem w transmisji
+  (treść alertu: nazwa organizacji, krótki tekst i link).
