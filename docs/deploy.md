@@ -232,6 +232,21 @@ poświadczenia bota, **aktywacja workflow**, adres produkcyjny webhooka do `N8N_
 identyfikator czatu na stronie *Powiadomienia* w aplikacji. Szablon nie był jeszcze uruchomiony w żywej n8n:
 wykonaj próbę z sekcji „Sprawdzenie” w tej instrukcji.
 
+**Instancja n8n działa na własnym serwerze w Polsce** (stan na 2026-11-11), więc dane z alertów nie opuszczają EOG po drodze
+do n8n. Wymagania z tego wynikające:
+
+- **Publiczny adres https.** Funkcje Supabase wywołują webhook z internetu (adresy wyjściowe Supabase nie są stałe, więc nie da się
+  ograniczyć dostępu listą adresów IP). Potrzebny jest ważny certyfikat od publicznego urzędu (np. Let's Encrypt) i adres
+  `https://…`: kod odrzuca `http` (wyjątek tylko dla `localhost`/`host.docker.internal`) i nie śledzi przekierowań.
+- **Ochrona przed nadużyciem** zapewnia podpis HMAC i znacznik czasu (żądanie bez poprawnego podpisu dostaje 401), ale warto
+  dodatkowo ograniczyć częstość żądań na reverse proxy (np. kilka na sekundę na adres) i wystawić publicznie **tylko** ścieżkę webhooka.
+- **Dane wykonań:** n8n zapisuje treść każdego żądania (organizacja, imię konsultanta, identyfikator czatu, link do sesji). Włącz czyszczenie
+  historii wykonań (`EXECUTIONS_DATA_PRUNE=true`, `EXECUTIONS_DATA_MAX_AGE` w godzinach), żeby te dane nie leżały dłużej, niż trzeba.
+- **Trwałość deduplikacji:** pamięć 500 ostatnich identyfikatorów jest w danych statycznych workflow i przetrwa restart tylko przy
+  trwałej bazie n8n (nie w trybie pamięciowym) i aktywnym workflow.
+- **Telegram** to osobny odbiorca poza Twoją kontrolą: wiadomość (nazwa organizacji, tekst alertu, link do widoku konsultanta) trafia na
+  serwery Telegrama. Dane klienta w niej nie ma, ale to dane konsultanta (patrz `n8n-followup.md`, „Uwaga prawna”).
+
 ## 8. Dane organizacji przed pierwszą rozmową
 
 Uzupełnij (SQL editor, jako właściciel; edytować może też właściciel organizacji przez API):

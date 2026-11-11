@@ -19,15 +19,29 @@ const allText = (config: PolicyConfig): string =>
 describe('buildPrivacyPolicy — projekt MITAX (dane jeszcze nieuzupełnione)', () => {
   const policy = buildPrivacyPolicy(MITAX_POLICY);
 
-  it('jest oznaczona jako projekt i wymienia brakujące dane', () => {
+  it('jest oznaczona jako projekt i wymienia dane, których jeszcze brakuje', () => {
     expect(policy.isDraft).toBe(true);
-    expect(policy.missing).toEqual([
-      'adres siedziby administratora',
-      'adres e-mail do kontaktu w sprawach danych osobowych',
-      'okres przechowywania danych',
-      'sposób realizacji żądania usunięcia danych',
-      'szczegóły przekazywania danych poza EOG (dostawcy, mechanizm)',
-    ]);
+    expect(policy.missing).toEqual(['okres przechowywania danych', 'sposób realizacji żądania usunięcia danych']);
+  });
+
+  it('opis przekazywania poza EOG jest wpisany: region UE, standardowe klauzule umowne, bez niepotwierdzonych twierdzeń', () => {
+    const text = allText(MITAX_POLICY);
+    expect(text).toContain('Dane przechowujemy w regionie UE (Frankfurt, Niemcy)');
+    expect(text).toContain('standardowych klauzul umownych zatwierdzonych przez Komisję Europejską');
+    expect(text).toContain('poza Europejskim Obszarem Gospodarczym, w tym w Stanach Zjednoczonych');
+    expect(text).not.toContain('[do uzupełnienia: szczegóły przekazywania');
+    // nie nazywamy dostawców ani nie obiecujemy regionów, których nie potwierdzono (MailerSend: podmiot umowy i regiony do weryfikacji)
+    for (const unverified of ['MailerSend', 'Vercel', 'Supabase', 'Litw', 'Data Privacy Framework', 'DPF']) {
+      expect(text, unverified).not.toContain(unverified);
+    }
+  });
+
+  it('zawiera już wpisane dane administratora: adres siedziby i adres e-mail do kontaktu', () => {
+    const text = allText(MITAX_POLICY);
+    expect(text).toContain('z siedzibą: ul. Warszawska 4/8, 59-900 Zgorzelec.');
+    expect(text).toContain('pod adresem: rodo@mitax.pl.');
+    expect(text).not.toContain('[do uzupełnienia: adres siedziby administratora]');
+    expect(text).not.toContain('[do uzupełnienia: adres e-mail do kontaktu w sprawach danych osobowych]');
   });
 
   it('nie wymyśla danych: każdy brak ma widoczny znacznik w tekście', () => {
