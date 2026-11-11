@@ -86,7 +86,7 @@ for (const table of ['calc_sessions', 'calc_snapshots', 'calc_events', 'leads', 
 }
 if (appUrl) {
   const app = appUrl.replace(/\/+$/, '');
-  for (const path of ['/login', `/s/${TOKEN}`, '/session/00000000-0000-0000-0000-000000000000/follow-up']) {
+  for (const path of ['/login', `/s/${TOKEN}`, '/session/00000000-0000-0000-0000-000000000000/follow-up', '/polityka-prywatnosci']) {
     await check(`aplikacja: ${path} → 200 z index.html (przepisywanie tras SPA)`, async () => {
       const res = await fetch(`${app}${path}`, { signal: AbortSignal.timeout(30_000) });
       const html = await res.text();

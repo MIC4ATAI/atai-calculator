@@ -322,3 +322,11 @@ input[type='text'][aria-invalid='true'] { border-color: var(--danger); }
 .privacy-notice p { margin: 0 0 6px; }
 .privacy-notice p:last-child { margin-bottom: 0; }
 .privacy-notice a { color: var(--accent); }
+
+/* ---- Polityka prywatności (strona publiczna) ---- */
+.policy { max-width: 760px; }
+.policy h2 { font-size: 18px; margin: 28px 0 8px; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.policy p, .policy li { line-height: 1.6; }
+.policy ul { margin: 0 0 10px; padding-left: 22px; }
+.policy-draft { margin: 0 0 20px; padding: 12px 14px; border-radius: 10px; background: var(--warn-soft); color: var(--warn); font-size: 14px; }
+.policy-placeholder { background: #fff3b0; color: #5c4400; padding: 0 3px; border-radius: 3px; }
