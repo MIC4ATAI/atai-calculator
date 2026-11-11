@@ -5,7 +5,7 @@
  * Wizyta obejmuje zdarzenia z przedziału [początek, ostatnia aktywność]. Zdarzenia spoza wizyt (np. zmiany
  * konsultanta między wizytami klienta) trafiają do `otherChanges`, żeby nie wyglądały na działania klienta.
  */
-import { FIELD_LABELS, FIELD_UNITS } from '../session/fields.ts';
+import { FIELD_DEFAULTS, FIELD_LABELS, FIELD_UNITS } from '../session/fields.ts';
 import { nf } from '../session/format.ts';
 import { GUEST_INPUT_KEYS, type GuestInputKey } from '../session/inputs.ts';
 
@@ -81,13 +81,20 @@ export function fieldLabel(field: string): string {
 const MAX_TEXT = 80;
 
 /** Wartość z dziennika (jsonb) → tekst do wyświetlenia. Nie ufamy kształtowi: liczby, napisy, boole, null. */
+/** Miejsca po przecinku jak w kolumnach pól (presenterView): współczynniki z jedną cyfrą, reszta całkowita. */
+const decimalsFor = (field: string, value: number): number => (field.startsWith('wsp') ? 1 : Number.isInteger(value) ? 0 : 2);
+
 export function formatEventValue(field: string, value: unknown): string {
-  if (value === null || value === undefined) return '–';
-  if (value === '') return '(puste)';
+  const unit = (FIELD_UNITS as Record<string, string | undefined>)[field] ?? '';
+  const def = (FIELD_DEFAULTS as Record<string, number | undefined>)[field];
+  // Brak wpisu w polu z podpowiedzią oznacza wartość domyślną (jak w widoku „na żywo”), nie „nic”.
+  if (value === null || value === undefined || value === '') {
+    if (def !== undefined) return `${nf(def, decimalsFor(field, def))}${unit} (domyślne)`;
+    return value === '' ? '(puste)' : '–';
+  }
   if (typeof value === 'boolean') return value ? 'tak' : 'nie';
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const unit = (FIELD_UNITS as Record<string, string | undefined>)[field] ?? '';
-    return `${nf(value, Number.isInteger(value) ? 0 : 2)}${unit}`;
+    return `${nf(value, decimalsFor(field, value))}${unit}`;
   }
   if (typeof value === 'string') return value.length > MAX_TEXT ? `${value.slice(0, MAX_TEXT)}…` : value;
   return '–';

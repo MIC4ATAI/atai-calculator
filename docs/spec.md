@@ -344,3 +344,9 @@ flagą `visit` (błąd rejestracji tylko się loguje, odczyt się nie psuje) i o
 Realtime i odzyskanie łączności wizyty nie tworzą. Stały pasek „Wynik z rozmowy” pokazuje liczby ze snapshotu, bieżącą
 symulację z różnicą i przycisk „Wróć do stanu z rozmowy” (aktywny tylko przy zmianie; porzuca niezapisane wpisy i czeka
 na zapis w drodze, żeby go nie nadpisać). Test e2e: `src/e2e/followup.e2e.test.ts`.
+
+Widok konsultanta (krok 3.4): trasa `/session/:id/follow-up` (link z bloku „Kalkulacja wysłana” i plakietka „Klient wrócił · N×”
+na liście sesji) zestawia w trzech kolumnach stan z rozmowy (snapshot), ostatnią symulację klienta (bieżące dane
+policzone przez `src/calc`, różnice godzin, klientów i przychodu, zmienione pola podświetlone) i zmiany po rozmowie
+pogrupowane w wizyty. Dane czyta RLS (snapshot, `calc_events` po zamrożeniu, `session_visits`), a widok odświeża się
+na żywo po każdej zmianie wiersza sesji (nowa wizyta „dotyka” sesji). Logika: `src/followup/presenterView.ts`.

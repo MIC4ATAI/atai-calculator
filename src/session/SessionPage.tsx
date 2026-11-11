@@ -111,7 +111,7 @@ function PresenterSession({ id }: { id: string }) {
         )}
       </section>
 
-      <LeadBlock info={s.leadInfo} revealed={s.revealed} />
+      <LeadBlock info={s.leadInfo} revealed={s.revealed} sessionId={id} />
 
       <section className="pane">
         <div className="pane-head">
@@ -277,7 +277,7 @@ function PresenterSession({ id }: { id: string }) {
 }
 
 /** Stan CTA rozmówcy: czy poprosił o kalkulację, na jaki adres, ile razy wysłano i czy ostatnia próba się udała. */
-function LeadBlock({ info, revealed }: { info: LeadInfo | null; revealed: boolean }) {
+function LeadBlock({ info, revealed, sessionId }: { info: LeadInfo | null; revealed: boolean; sessionId: string }) {
   if (!info || (info.sentCount === 0 && info.lastFailure === null && info.frozenAt === null)) {
     return revealed ? (
       <section className="card lead-block">
@@ -295,7 +295,12 @@ function LeadBlock({ info, revealed }: { info: LeadInfo | null; revealed: boolea
           na adres <b>{info.lockedEmail}</b>
           {info.lastSentAt && <> · {formatDateTime(info.lastSentAt)}</>} · wysłano {info.sentCount}×
         </p>
-        {info.frozenAt && <p className="sub">Stan z rozmowy zamrożony {formatDateTime(info.frozenAt)}.</p>}
+        {info.frozenAt && (
+          <p className="sub">
+            Stan z rozmowy zamrożony {formatDateTime(info.frozenAt)}.{' '}
+            <Link to={`/session/${sessionId}/follow-up`}>Porównaj z ostatnią symulacją →</Link>
+          </p>
+        )}
         {info.lastFailure && (
           <p className="sub">Ostatnia próba ponownej wysyłki nie powiodła się: {info.lastFailure.error ?? 'nieznany błąd'}.</p>
         )}

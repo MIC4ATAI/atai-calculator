@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './app/AppShell';
 import { HomePage } from './app/HomePage';
+import { FollowUpPage } from './followup/FollowUpPage';
 import { AuthProvider } from './auth/AuthProvider';
 import { LoginPage } from './auth/LoginPage';
 import { RequireAuth } from './auth/RequireAuth';
@@ -24,6 +25,7 @@ export function App() {
               <Route element={<AppShell />}>
                 <Route path="/app" element={<HomePage />} />
                 <Route path="/session/:id" element={<SessionPage />} />
+                <Route path="/session/:id/follow-up" element={<FollowUpPage />} />
               </Route>
             </Route>
           </Route>

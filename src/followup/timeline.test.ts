@@ -101,13 +101,22 @@ describe('etykiety i wartości', () => {
     expect(norm(formatEventValue('przychod', 1_500_000))).toBe('1 500 000 zł');
     expect(formatEventValue('ef', 70)).toBe('70 %');
     expect(formatEventValue('kh', 100)).toBe('100');
-    expect(formatEventValue('wspCzas', 2.5)).toBe('2,50 ×');
+    expect(formatEventValue('wspCzas', 2.5)).toBe('2,5 ×');
+    expect(formatEventValue('wspCena', 4)).toBe('4,0 ×');
     expect(formatEventValue('kh', null)).toBe('–');
     expect(formatEventValue('kh', undefined)).toBe('–');
     expect(formatEventValue('kh', '')).toBe('(puste)');
     expect(formatEventValue('revealed', true)).toBe('tak');
     expect(formatEventValue('revealed', false)).toBe('nie');
     expect(formatEventValue('reply', 'a'.repeat(200))).toBe(`${'a'.repeat(80)}…`);
+  });
+
+  it('brak wpisu w polu z podpowiedzią to wartość domyślna, nie „nic”', () => {
+    expect(formatEventValue('ef', null)).toBe('80 % (domyślne)');
+    expect(formatEventValue('ef', '')).toBe('80 % (domyślne)');
+    expect(formatEventValue('wspCzas', null)).toBe('2,0 × (domyślne)');
+    expect(formatEventValue('przychod', null)).toBe('–');
+    expect(formatEventValue('przychod', '')).toBe('(puste)');
   });
 
   it('kształty, których nie rozumiemy, nie wywracają widoku', () => {
@@ -120,5 +129,7 @@ describe('etykiety i wartości', () => {
   it('zmiana w osi czasu niesie czytelne „było → jest”', () => {
     const t = buildTimeline([ev(61, 'ef', 80, 70)], [visit('v1', 60, 65)], FROZEN);
     expect(t.visits[0]!.changes[0]).toMatchObject({ label: 'Czas na pracę z klientami', from: '80 %', to: '70 %', actor: 'guest' });
+    const first = buildTimeline([ev(61, 'ef', null, 70)], [visit('v1', 60, 65)], FROZEN);
+    expect(first.visits[0]!.changes[0]).toMatchObject({ from: '80 % (domyślne)', to: '70 %' });
   });
 });

@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { useOrgs } from '../org/OrgProvider';
 import { formatNip } from '../company/companyView';
+import { loadVisitStats } from '../followup/followUpApi';
+import type { VisitStat } from '../followup/presenterView';
 import { CopyButton } from '../session/CopyButton';
 import { formatDateTime, guestLink, statusLabel } from '../session/sessionFormat';
 import { createSession, listMySessions, type SessionListItem } from '../session/sessionsApi';
@@ -16,6 +18,8 @@ export function HomePage() {
   const userId = user?.id ?? null;
 
   const [sessions, setSessions] = useState<SessionListItem[] | null>(null);
+  // Powroty klienta po wysłaniu kalkulacji; błąd nie blokuje listy (plakietki są dodatkiem).
+  const [visits, setVisits] = useState<Map<string, VisitStat>>(new Map());
   const [loadError, setLoadError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(false);
@@ -26,7 +30,13 @@ export function HomePage() {
     setSessions(null);
     setLoadError(false);
     listMySessions(orgId, userId)
-      .then((list) => active && setSessions(list))
+      .then((list) => {
+        if (!active) return;
+        setSessions(list);
+        loadVisitStats(list.map((s) => s.id))
+          .then((stats) => active && setVisits(stats))
+          .catch(() => undefined);
+      })
       .catch(() => active && setLoadError(true));
     return () => {
       active = false;
@@ -92,6 +102,11 @@ export function HomePage() {
                 </span>
                 <span className="badge">{statusLabel(s.status)}</span>
                 {s.revealed && <span className="badge badge-accent">Wynik odsłonięty</span>}
+                {visits.get(s.id) && (
+                  <Link to={`/session/${s.id}/follow-up`} className="badge badge-warn">
+                    Klient wrócił · {visits.get(s.id)!.count}×, {formatDateTime(visits.get(s.id)!.lastStartedAt)}
+                  </Link>
+                )}
               </div>
               <div className="session-actions">
                 <CopyButton text={guestLink(window.location.origin, s.token)} />

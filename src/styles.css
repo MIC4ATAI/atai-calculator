@@ -295,3 +295,24 @@ input[type='text'][aria-invalid='true'] { border-color: var(--danger); }
 .followup-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
 .followup-actions button { padding: 6px 12px; font-size: 14px; }
 .followup-error { color: var(--danger); font-size: 13px; }
+
+/* ---- Follow-up konsultanta: rozmowa vs ostatnia symulacja ---- */
+.badge-warn { color: var(--warn); background: var(--warn-soft); text-decoration: none; }
+.followup-page { max-width: 1180px; }
+.followup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.followup-col h2 { margin-top: 0; }
+.followup-summary { margin: 0 0 12px; display: grid; gap: 8px; }
+.followup-summary dt { font-size: 13px; color: var(--muted); }
+.followup-summary dd { margin: 0; font-size: 17px; font-weight: 600; }
+.followup-delta { font-weight: 400; font-size: 14px; color: var(--accent); }
+.followup-fields { width: 100%; border-collapse: collapse; font-size: 14px; }
+.followup-fields td { padding: 5px 0; border-top: 1px solid var(--line); }
+.followup-fields td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.followup-fields tr.changed td { background: var(--warn-soft); font-weight: 600; }
+.followup-warn { color: var(--warn); }
+.followup-visit { margin-top: 14px; }
+.followup-visit h3 { font-size: 15px; margin: 0 0 6px; }
+.followup-changes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+.followup-changes li { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; }
+.followup-time { color: var(--muted); font-size: 12px; padding-top: 2px; }
+.followup-visit h3 { text-transform: none; letter-spacing: 0; color: var(--ink); }
