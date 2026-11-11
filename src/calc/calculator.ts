@@ -6,7 +6,12 @@
  * sesji (calc_snapshots) zapisują wersję logiki, którą policzono wynik.
  */
 
-export const CALC_VERSION = '1.0.0';
+/**
+ * Wersja logiki zapisywana w zamrożonych stanach sesji. Historia:
+ *  - 1.1.0: dodano `przychodNaGodzine` (arkusz: zł/h = przychód / rg); istniejące wzory bez zmian.
+ *  - 1.0.0: wersja początkowa.
+ */
+export const CALC_VERSION = '1.1.0';
 
 /** Dane podawane przez rozmówcę (lub podpowiadane przez konsultanta). */
 export interface CalcInputs {
@@ -69,6 +74,8 @@ export interface CalcResult {
   cenaKh: number | null;
   /** Średnia cena miesięczna klienta KPiR, zł (null bez przychodu). */
   cenaKpir: number | null;
+  /** Przychód na jedną efektywną godzinę pracy, zł/h (arkusz: przychód / rg; null bez przychodu). */
+  przychodNaGodzine: number | null;
 }
 
 export interface MixResult {
@@ -123,7 +130,9 @@ export function calculate(inputs: CalcInputs, params: CalcParams = DEFAULT_PARAM
 
   let cenaKh: number | null = null;
   let cenaKpir: number | null = null;
+  let przychodNaGodzine: number | null = null;
   if (inputs.przychodRok != null && inputs.przychodRok > 0) {
+    przychodNaGodzine = inputs.przychodRok / 12 / efektywneGodziny;
     // Klienci przeliczeniowi według ceny (1 KPiR = 1, 1 KH = wspCeny).
     const klienciCenowi = inputs.kh * wspCeny + inputs.kpir;
     cenaKpir = inputs.przychodRok / 12 / klienciCenowi;
@@ -145,6 +154,7 @@ export function calculate(inputs: CalcInputs, params: CalcParams = DEFAULT_PARAM
     maksNowychKpir: floorSafe(odzyskanyCzasWKlientachKpir),
     cenaKh,
     cenaKpir,
+    przychodNaGodzine,
   };
 }
 

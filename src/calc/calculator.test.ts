@@ -42,6 +42,23 @@ describe('calculate — zgodność z arkuszem kalkulator-br', () => {
     expect(r.maksNowychKh).toBe(20);
     expect(r.maksNowychKpir).toBe(40);
   });
+
+  // Arkusz „kalkulator-br”: zł/h w wierszu „przychód” = C4/C14 (rocznie) i D4/D14 (miesięcznie) = 137,79.
+  it('przychód na efektywną godzinę (arkusz: 137,79 zł/h)', () => {
+    expect(r.przychodNaGodzine).toBeCloseTo(137.79, 2);
+    // ten sam wynik rocznie i miesięcznie, jak w arkuszu
+    expect(r.przychodNaGodzine! * r.efektywneGodziny * 12).toBeCloseTo(PRZYKLAD.przychodRok, 2);
+  });
+
+  it('bez przychodu nie liczy przychodu na godzinę', () => {
+    expect(calculate({ ...PRZYKLAD, przychodRok: null }).przychodNaGodzine).toBeNull();
+    expect(calculate({ ...PRZYKLAD, przychodRok: 0 }).przychodNaGodzine).toBeNull();
+    expect(calculate({ ...PRZYKLAD, przychodRok: undefined }).przychodNaGodzine).toBeNull();
+  });
+
+  it('wersja logiki: 1.1.0 (dodano przychód na godzinę)', () => {
+    expect(CALC_VERSION).toBe('1.1.0');
+  });
 });
 
 describe('mix — suwak miksu nowych klientów', () => {
