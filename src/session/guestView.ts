@@ -19,34 +19,27 @@ import {
   type MixResult,
 } from '../calc/calculator.ts';
 import { toCompanyView, type CompanyRow, type CompanyView } from '../company/companyView.ts';
+import {
+  compareToConversation,
+  readConversation,
+  type FollowUpView,
+  type SnapshotRowLike,
+} from '../followup/conversation.ts';
 import { buildCtaView, type CtaState, type CtaView, type DeliverySummary } from '../cta/ctaPolicy.ts';
 
-/** Pola, które wpisuje rozmówca (kształt UI, jak w prototypie; efektywność w %). */
-export const GUEST_INPUT_KEYS = ['kh', 'kpir', 'prac', 'przychod', 'koszty', 'ef', 'wspCzas', 'wspCena'] as const;
-export type GuestInputKey = (typeof GUEST_INPUT_KEYS)[number];
+import {
+  GUEST_INPUT_KEYS,
+  sanitizeInputs,
+  type GuestInputKey,
+  type InputValue,
+  type SessionInputs,
+} from './inputs.ts';
 
-/** Wartość pola: liczba albo '' (pole wyczyszczone). */
-export type InputValue = number | '';
-export type SessionInputs = Partial<Record<GuestInputKey, InputValue>>;
+export { GUEST_INPUT_KEYS, sanitizeInputs };
+export type { GuestInputKey, InputValue, SessionInputs };
 
-/** Górne ograniczenie wartości z formularza — chroni przed absurdalnymi liczbami. */
-const MAX_INPUT_VALUE = 1e12;
 /** Tyle wariantów miksu maksymalnie wysyłamy rozmówcy (ochrona rozmiaru odpowiedzi). */
 const MAX_MIX_VARIANTS = 1000;
-
-/** Zostawia tylko dozwolone pola z liczbami (lub ''), resztę odrzuca. Lustro filtra SQL private.filter_inputs. */
-export function sanitizeInputs(raw: unknown): SessionInputs {
-  const out: SessionInputs = {};
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
-  const obj = raw as Record<string, unknown>;
-  for (const key of GUEST_INPUT_KEYS) {
-    if (!Object.hasOwn(obj, key)) continue; // tylko własne pola, bez dziedziczonych po prototypie
-    const v = obj[key];
-    if (v === '') out[key] = '';
-    else if (typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= MAX_INPUT_VALUE) out[key] = v;
-  }
-  return out;
-}
 
 const PARAM_KEYS = ['celKorzysci', 'dniRobocze', 'godzinyDziennie'] as const;
 
@@ -177,6 +170,8 @@ export interface SessionRow {
   company?: CompanyRow | null;
   /** Stan dostaw (leady i wysyłki); brak = nic jeszcze nie wysłano. */
   delivery?: DeliverySummary | null;
+  /** Zamrożony stan z rozmowy (snapshot); brak = rozmówca jeszcze nie poprosił o kalkulację. */
+  snapshot?: SnapshotRowLike | null;
 }
 
 const NO_DELIVERY: DeliverySummary = { hasLead: false, sentCount: 0, lockedEmail: null, lastSentAt: null };
@@ -212,6 +207,26 @@ export interface GuestView {
   nipLocked: boolean;
   /** Stan CTA „Przyślij mi kalkulację”: czy można wysłać, ile razy wysłano, zamaskowany adres. */
   cta: CtaView;
+  /** Stan z rozmowy i różnica względem bieżącej symulacji; null = brak zamrożonego stanu (albo wynik ukryty). */
+  followUp: FollowUpView | null;
+}
+
+/**
+ * Follow-up: „Wynik z rozmowy” ze snapshotu i różnica względem bieżącej symulacji klienta. Liczby bieżące liczy
+ * src/calc (buildGuestResult), ze snapshotu czytamy tylko to, co zapisano. Uszkodzony snapshot = brak paska.
+ */
+function buildFollowUp(row: SessionRow, inputs: SessionInputs): FollowUpView | null {
+  if (!row.snapshot || !row.revealed) return null;
+  const conversation = readConversation(row.snapshot);
+  if (!conversation) return null;
+
+  const result = buildGuestResult(inputs, resolveParams(row.params));
+  const chosen = result ? pickMix(result, row.mix_kh) : null;
+  const current =
+    result && chosen
+      ? { godziny: result.godzinyDoOdzyskania, nowiKh: chosen.kh, nowiKpir: chosen.kpir, calcVersion: result.calcVersion }
+      : null;
+  return { conversation: conversation.view, comparison: compareToConversation(conversation, inputs, current) };
 }
 
 export function buildGuestView(row: SessionRow): GuestView {
@@ -233,6 +248,7 @@ export function buildGuestView(row: SessionRow): GuestView {
         delivery: row.delivery ?? NO_DELIVERY,
       }),
     ),
+    followUp: buildFollowUp(row, inputs),
   };
 }
 

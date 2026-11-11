@@ -61,3 +61,42 @@ describe('parseGuestRequest — patch', () => {
     expect(parseGuestRequest({ action: 'patch', token: TOKEN, reply: '' })).toMatchObject({ ok: true, request: { reply: '' } });
   });
 });
+
+describe('parseGuestRequest — follow-up (wizyta i przywrócenie stanu)', () => {
+  it('„get” z flagą wizyty przenosi ją tylko gdy jest prawdziwa', () => {
+    expect(parseGuestRequest({ action: 'get', token: TOKEN, visit: true })).toEqual({
+      ok: true,
+      request: { action: 'get', token: TOKEN, visit: true },
+    });
+    expect(parseGuestRequest({ action: 'get', token: TOKEN, visit: false })).toEqual({
+      ok: true,
+      request: { action: 'get', token: TOKEN },
+    });
+  });
+
+  it('flaga wizyty o złym typie jest odrzucana (nie zgadujemy)', () => {
+    for (const visit of ['true', 1, 0, null, {}, []]) {
+      expect(parseGuestRequest({ action: 'get', token: TOKEN, visit }).ok, JSON.stringify(visit)).toBe(false);
+    }
+  });
+
+  it('wizyta nie jest częścią „patch” ani „restore”', () => {
+    expect(parseGuestRequest({ action: 'patch', token: TOKEN, visit: true })).toMatchObject({
+      ok: true,
+      request: { action: 'patch', token: TOKEN },
+    });
+    expect(parseGuestRequest({ action: 'restore', token: TOKEN, visit: true })).toEqual({
+      ok: true,
+      request: { action: 'restore', token: TOKEN },
+    });
+  });
+
+  it('„restore” wymaga poprawnego tokenu i nie przyjmuje danych (przywraca wyłącznie snapshot)', () => {
+    expect(parseGuestRequest({ action: 'restore', token: TOKEN })).toEqual({ ok: true, request: { action: 'restore', token: TOKEN } });
+    expect(parseGuestRequest({ action: 'restore', token: 'x' }).ok).toBe(false);
+    expect(parseGuestRequest({ action: 'restore', token: TOKEN, patch: { kh: 999 }, mixKh: 5 })).toEqual({
+      ok: true,
+      request: { action: 'restore', token: TOKEN },
+    });
+  });
+});

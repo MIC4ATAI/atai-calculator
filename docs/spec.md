@@ -328,3 +328,12 @@ dostępu dla klientów, tylko serwer przez RPC `claim_notifications` / `finish_n
 RPC `record_guest_visit` (otwarcie strony) i trigger zmian danych bez JWT (aktor `guest`, jak w dzienniku zmian).
 `restore_session_to_snapshot` przywraca dane i miks ze snapshotu; zmiany zapisuje dziennik jako zmiany rozmówcy.
 Test pgTAP `07_followup.sql` (73 asercje) obejmuje RLS, okno 30 min, jeden alert na wizytę, restore, outbox i profil.
+
+Logika follow-upu (krok 3.2, `src/followup/`, współdzielona z Edge Function): `readConversation` czyta liczby zapisane
+w snapshocie (uszkodzony snapshot = brak paska, widok działa dalej), `compareToConversation` zestawia je z bieżącą
+symulacją policzoną przez `src/calc` (zmiana danych albo miksu, różnice godzin i klientów, znacznik innej wersji
+logiki), a `buildTimeline` grupuje zmiany po zamrożeniu w wizyty klienta (zmiany konsultanta i zdarzenia spoza okna
+wizyty trafiają osobno, żeby nie wyglądały na działania klienta). Klient dostaje w `GuestView.followUp` tylko godziny,
+miks, datę i wersję, bez kosztów i cichych założeń; wynik ukryty przez konsultanta ukrywa też follow-up. Żądania
+rozmówcy: `get` z flagą `visit` (tylko przy otwarciu strony) i akcja `restore` (bez danych, wyłącznie ze snapshotu).
+

@@ -17,7 +17,10 @@ export function isValidToken(value: unknown): value is string {
 }
 
 export type GuestRequest =
-  | { action: 'get'; token: string }
+  /** `visit: true` — klient właśnie otworzył stronę (powrót do sesji); pomijane przy odświeżeniach Realtime. */
+  | { action: 'get'; token: string; visit?: true }
+  /** „Wróć do stanu z rozmowy”: dane i miks wracają do zamrożonego snapshotu. */
+  | { action: 'restore'; token: string }
   | {
       action: 'patch';
       token: string;
@@ -40,7 +43,11 @@ export function parseGuestRequest(body: unknown): ParseResult {
   if (!isValidToken(b.token)) return fail('Niepoprawny token');
   const token = b.token;
 
-  if (b.action === 'get') return { ok: true, request: { action: 'get', token } };
+  if (b.action === 'get') {
+    if (b.visit !== undefined && typeof b.visit !== 'boolean') return fail('Niepoprawna flaga wizyty');
+    return { ok: true, request: b.visit === true ? { action: 'get', token, visit: true } : { action: 'get', token } };
+  }
+  if (b.action === 'restore') return { ok: true, request: { action: 'restore', token } };
   if (b.action !== 'patch') return fail('Nieznana akcja');
 
   let mixKh: number | null = null;
