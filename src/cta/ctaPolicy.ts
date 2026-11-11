@@ -12,6 +12,16 @@ import { maskEmail, parseEmail } from '../email/address.ts';
 /** Maksymalna liczba udanych wysyłek na sesję (jak w SQL). */
 export const MAX_SENDS = 3;
 
+/** Podsumowanie dostaw sesji (z tabel leads i lead_deliveries). */
+export interface DeliverySummary {
+  /** Istnieje lead — NIP jest zablokowany. */
+  hasLead: boolean;
+  sentCount: number;
+  /** Adres, na który poszła pierwsza udana wysyłka; null, gdy jeszcze nic nie wysłano. */
+  lockedEmail: string | null;
+  lastSentAt: string | null;
+}
+
 export interface CtaState {
   /** Konsultant odsłonił wynik. */
   revealed: boolean;

@@ -259,3 +259,16 @@ input[type='text'][aria-invalid='true'] { border-color: var(--danger); }
 .company-block .company-name { margin: 2px 0 0; }
 .company-block .sub { margin: 2px 0 0; }
 .session-company { color: var(--muted); font-size: 14px; }
+
+/* ---- CTA: kalkulacja e-mailem (rozmówca) i stan wysyłki (prezenter) ---- */
+.cta-card { margin-top: 18px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: #fbfbfa; }
+.cta-title { font-size: 16px; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 12px; }
+.cta-sent p { margin: 0 0 10px; }
+.cta-notice { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 14px; }
+.cta-card input[type='email'] { background: #fff; }
+
+.lead-block { margin-top: 16px; }
+.lead-block h2 { margin-bottom: 4px; }
+.lead-block p { margin: 2px 0 0; }
+.lead-ok { border-color: #cfe3db; background: var(--accent-soft); }
+.lead-warn { border-color: #f0d9bf; background: var(--warn-soft); }

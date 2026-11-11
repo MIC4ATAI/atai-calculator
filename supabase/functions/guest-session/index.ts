@@ -14,6 +14,7 @@
 import { parseGuestRequest } from '../../../src/session/guestRequest.ts';
 import { buildGuestView, type SessionRow } from '../../../src/session/guestView.ts';
 import { admin } from '../_shared/admin.ts';
+import { loadDeliverySummary } from '../_shared/cta.ts';
 import { handleNonPost, json, readJsonBody } from '../_shared/http.ts';
 
 // Kolumny firmy potrzebne do widoku rozmówcy (surowa odpowiedź GUS nie jest wybierana).
@@ -24,12 +25,14 @@ const COMPANY_COLUMNS =
 async function loadView(token: string) {
   const { data, error } = await admin
     .from('calc_sessions')
-    .select(`inputs, params, revealed, mix_kh, reply, status, company:companies(${COMPANY_COLUMNS})`)
+    .select(`id, inputs, params, revealed, mix_kh, reply, status, company:companies(${COMPANY_COLUMNS})`)
     .eq('token', token)
     .maybeSingle();
   if (error) throw error;
   if (!data || data.status === 'archived') return null;
-  return buildGuestView(data as unknown as SessionRow);
+  // Stan CTA: leady i wysyłki (zamaskowany adres, licznik, blokada NIP-u) — bez pełnego adresu w widoku.
+  const delivery = await loadDeliverySummary(data.id);
+  return buildGuestView({ ...(data as unknown as SessionRow), delivery });
 }
 
 Deno.serve(async (req) => {

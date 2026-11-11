@@ -259,6 +259,23 @@ Mail z kalkulacją, polityka CTA i adaptery poczty (`src/email/`, `src/cta/`, kr
   środowiska i `fetch` są wstrzykiwane, więc logika jest testowana bez Deno. Błędy zapisywane w
   `lead_deliveries.error` mają najwyżej 200 znaków, jedną linię i nie zawierają tokenu ani adresu odbiorcy.
 
+CTA end-to-end (`request-calculation`, krok 2.6):
+
+- **Przebieg:** polityka CTA → RPC `prepare_calculation_delivery` (snapshot i lead, atomowo) → Excel i mail
+  zbudowane ZE SNAPSHOTU → wysyłka → zapis dostawy. Ponowna wysyłka po zmianach rozmówcy przesyła nadal stan z
+  rozmowy (sprawdzone: po zmianie `kh` 100 → 999 plik ma nadal 100). Konfiguracja poczty jest sprawdzana przed
+  zamrożeniem, więc błąd konfiguracji nie zostawia snapshotu ani leada.
+- **Blokady:** lead (także po nieudanej próbie) blokuje zmianę NIP-u; adres e-mail blokuje się dopiero po pierwszej
+  UDANEJ wysyłce, więc literówka lub awaria poczty nie zamykają rozmówcy w pułapce. Limit 3 udanych wysyłek jest
+  egzekwowany i w TS (`MAX_SENDS`), i w SQL (sprawdzone testem integracyjnym: warstwa TS i RPC dają ten sam wynik).
+- **Podwójne kliknięcie:** „Wyślij ponownie” w ciągu 10 s po udanej wysyłce niczego nie wysyła (odpowiedź
+  `duplicate`). Nie obejmuje to dwóch żądań w locie jednocześnie — to znane, drobne ograniczenie.
+- **Realtime:** lead i każda próba dostawy „dotykają” sesji (migracja 4), więc prezenter widzi „Kalkulacja wysłana”
+  albo nieudaną próbę na żywo, a inne karty rozmówcy — zablokowany NIP. Dane osobowe nie przechodzą kanałem.
+- **Reply-To:** adres logowania konsultanta (`auth.users`), pobierany administracyjnym API Auth po stronie serwera.
+- **GUS przy zimnym starcie:** pierwsze zapytanie po starcie funkcji może przekroczyć limit 8 s i skończyć się
+  „GUS niedostępny”; rozmowa toczy się dalej, a ponowienie uzupełnia dane.
+
 ## Infrastruktura
 
 - GitHub: organizacja MIC4ATAI, repozytorium `atai-calculator` (prywatne).

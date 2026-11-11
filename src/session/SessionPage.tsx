@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { mix } from '../calc/calculator';
+import type { LeadInfo } from '../cta/leadInfo';
 import { CopyButton } from './CopyButton';
 import { FIELD_LABELS, FIELD_ORDER, FIELD_UNITS, isDefaultValue } from './fields';
 import { minSec, nf, zl } from './format';
@@ -109,6 +110,8 @@ function PresenterSession({ id }: { id: string }) {
           </>
         )}
       </section>
+
+      <LeadBlock info={s.leadInfo} revealed={s.revealed} />
 
       <section className="pane">
         <div className="pane-head">
@@ -270,6 +273,47 @@ function PresenterSession({ id }: { id: string }) {
         </div>
       </section>
     </main>
+  );
+}
+
+/** Stan CTA rozmówcy: czy poprosił o kalkulację, na jaki adres, ile razy wysłano i czy ostatnia próba się udała. */
+function LeadBlock({ info, revealed }: { info: LeadInfo | null; revealed: boolean }) {
+  if (!info || (info.sentCount === 0 && info.lastFailure === null && info.frozenAt === null)) {
+    return revealed ? (
+      <section className="card lead-block">
+        <h2>Kalkulacja e-mailem</h2>
+        <p className="sub">Rozmówca jeszcze nie poprosił o kalkulację.</p>
+      </section>
+    ) : null;
+  }
+
+  if (info.sentCount > 0) {
+    return (
+      <section className="card lead-block lead-ok" aria-live="polite">
+        <h2>Kalkulacja wysłana</h2>
+        <p>
+          na adres <b>{info.lockedEmail}</b>
+          {info.lastSentAt && <> · {formatDateTime(info.lastSentAt)}</>} · wysłano {info.sentCount}×
+        </p>
+        {info.frozenAt && <p className="sub">Stan z rozmowy zamrożony {formatDateTime(info.frozenAt)}.</p>}
+        {info.lastFailure && (
+          <p className="sub">Ostatnia próba ponownej wysyłki nie powiodła się: {info.lastFailure.error ?? 'nieznany błąd'}.</p>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="card lead-block lead-warn" role="status">
+      <h2>Wysyłka kalkulacji nie powiodła się</h2>
+      {info.currentEmail && (
+        <p>
+          adres: <b>{info.currentEmail}</b>
+        </p>
+      )}
+      {info.lastFailure && <p className="sub">{info.lastFailure.error ?? 'nieznany błąd'}. Rozmówca może spróbować ponownie.</p>}
+      {info.frozenAt && <p className="sub">Stan z rozmowy zamrożony {formatDateTime(info.frozenAt)}.</p>}
+    </section>
   );
 }
 

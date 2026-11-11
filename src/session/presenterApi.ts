@@ -1,5 +1,6 @@
 import type { CalcParams } from '../calc/calculator';
 import { toCompanyView, type CompanyView } from '../company/companyView';
+import { buildLeadInfo, type LeadInfo } from '../cta/leadInfo';
 import type { Json } from '../lib/database.types';
 import { supabase } from '../lib/supabase';
 import { resolveParams, sanitizeInputs, type SessionInputs } from './guestView';
@@ -19,6 +20,8 @@ export interface PresenterRow {
   reply: string;
   /** Firma przypięta do sesji przez rozmówcę (NIP + dane z GUS); null = jeszcze brak NIP-u. */
   companyId: string | null;
+  /** Ostatnia zmiana wiersza — także leada i prób wysyłki (trigger „dotyka” sesji) — wyzwala odświeżenie stanu CTA. */
+  updatedAt: string;
 }
 
 /** Kształt wiersza z bazy i z payloadu Realtime (postgres_changes). */
@@ -33,9 +36,10 @@ export interface RawSessionRow {
   mix_kh: number | null;
   reply: string;
   company_id: string | null;
+  updated_at: string;
 }
 
-const COLUMNS = 'id, token, status, revealed, created_at, inputs, params, mix_kh, reply, company_id';
+const COLUMNS = 'id, token, status, revealed, created_at, inputs, params, mix_kh, reply, company_id, updated_at';
 
 export function toPresenterRow(raw: RawSessionRow): PresenterRow {
   return {
@@ -49,6 +53,7 @@ export function toPresenterRow(raw: RawSessionRow): PresenterRow {
     mixKh: raw.mix_kh,
     reply: raw.reply,
     companyId: raw.company_id,
+    updatedAt: raw.updated_at,
   };
 }
 
@@ -88,4 +93,32 @@ export async function loadCompany(companyId: string): Promise<CompanyView | null
     .maybeSingle();
   if (error) throw error;
   return data ? toCompanyView(data) : null;
+}
+
+/**
+ * Stan CTA sesji dla prezentera: zamrożenie, adres, liczba wysyłek, ostatni błąd. Czyta RLS (leady, dostawy i snapshot
+ * widoczne dla konsultanta tej sesji i dla admina organizacji).
+ */
+export async function loadLeadInfo(sessionId: string): Promise<LeadInfo> {
+  const [snapshot, leads] = await Promise.all([
+    supabase.from('calc_snapshots').select('created_at').eq('session_id', sessionId).maybeSingle(),
+    supabase.from('leads').select('id, email, created_at').eq('session_id', sessionId),
+  ]);
+  if (snapshot.error) throw snapshot.error;
+  if (leads.error) throw leads.error;
+
+  const leadRows = leads.data ?? [];
+  let deliveries: { id: number; lead_id: string; status: string; error: string | null; created_at: string }[] = [];
+  if (leadRows.length > 0) {
+    const res = await supabase
+      .from('lead_deliveries')
+      .select('id, lead_id, status, error, created_at')
+      .in(
+        'lead_id',
+        leadRows.map((l) => l.id),
+      );
+    if (res.error) throw res.error;
+    deliveries = res.data ?? [];
+  }
+  return buildLeadInfo(snapshot.data?.created_at ?? null, leadRows, deliveries);
 }

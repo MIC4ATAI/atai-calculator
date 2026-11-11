@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { SendCalculationCard } from '../cta/SendCalculationCard';
 import { CompanyBar } from '../company/CompanyBar';
 import { CompanyCard } from '../company/CompanyCard';
 import type { CompanyView } from '../company/companyView';
@@ -96,7 +97,7 @@ function GuestSession({ token }: { token: string }) {
           {step === 'form' && company && (
           <>
           <p className="lead">Kilka podstawowych danych, wystarczą przybliżone wartości.</p>
-          <CompanyBar company={company} onChangeNip={() => setChangingNip(true)} />
+          <CompanyBar company={company} onChangeNip={() => setChangingNip(true)} locked={view.nipLocked} />
 
           <div className="row3">
             <NumberField {...field('kh')} label="Klienci – pełna księgowość" placeholder="np. 100" />
@@ -170,6 +171,10 @@ function GuestSession({ token }: { token: string }) {
 
           {view.revealed && view.result && (
             <ResultCard result={view.result} mixKh={mixKh} reply={reply} onMix={setMix} onReply={setReply} />
+          )}
+
+          {view.revealed && view.result && (
+            <SendCalculationCard token={token} cta={view.cta} onChanged={() => void refresh()} />
           )}
           </>
           )}

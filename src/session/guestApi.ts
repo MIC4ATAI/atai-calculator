@@ -1,6 +1,8 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import type { CompanyView } from '../company/companyView';
 import { lookupErrorKind, type LookupErrorKind } from '../company/lookupErrors';
+import type { CtaView } from '../cta/ctaPolicy';
+import { requestErrorKind, type RequestErrorKind } from '../cta/requestErrors';
 import { supabase } from '../lib/supabase';
 import type { GuestView, SessionInputs } from './guestView';
 
@@ -55,4 +57,36 @@ export async function callLookup(token: string, nip: string): Promise<LookupCall
   }
   if (!data?.company) return { ok: false, kind: 'unavailable' };
   return { ok: true, company: data.company };
+}
+
+export type CalcRequestResult =
+  | { ok: true; cta: CtaView; /** Podwójne kliknięcie: nic nie wysłano, bo mail wyszedł przed chwilą. */ duplicate: boolean }
+  | { ok: false; kind: RequestErrorKind; cta: CtaView | null };
+
+/**
+ * Wywołanie Edge Function `request-calculation`: CTA „Przyślij mi kalkulację”. `email` = null oznacza ponowną
+ * wysyłkę na adres zablokowany po pierwszej udanej wysyłce (rozmówca zna tylko jego zamaskowaną wersję).
+ */
+export async function callRequestCalculation(token: string, email: string | null): Promise<CalcRequestResult> {
+  const { data, error } = await supabase.functions.invoke<{ cta: CtaView; duplicate?: boolean }>('request-calculation', {
+    body: email === null ? { token } : { token, email },
+  });
+  if (error) {
+    let status: number | null = null;
+    let code: string | null = null;
+    let cta: CtaView | null = null;
+    if (error instanceof FunctionsHttpError && error.context instanceof Response) {
+      status = error.context.status;
+      try {
+        const body = (await error.context.json()) as { error?: unknown; cta?: CtaView } | null;
+        code = typeof body?.error === 'string' ? body.error : null;
+        cta = body?.cta ?? null;
+      } catch {
+        /* odpowiedź bez JSON-a — zostaje sam kod HTTP */
+      }
+    }
+    return { ok: false, kind: requestErrorKind(status, code), cta };
+  }
+  if (!data?.cta) return { ok: false, kind: 'unavailable', cta: null };
+  return { ok: true, cta: data.cta, duplicate: data.duplicate === true };
 }

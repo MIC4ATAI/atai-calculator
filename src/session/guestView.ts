@@ -19,6 +19,7 @@ import {
   type MixResult,
 } from '../calc/calculator.ts';
 import { toCompanyView, type CompanyRow, type CompanyView } from '../company/companyView.ts';
+import { buildCtaView, type CtaState, type CtaView, type DeliverySummary } from '../cta/ctaPolicy.ts';
 
 /** Pola, które wpisuje rozmówca (kształt UI, jak w prototypie; efektywność w %). */
 export const GUEST_INPUT_KEYS = ['kh', 'kpir', 'prac', 'przychod', 'koszty', 'ef', 'wspCzas', 'wspCena'] as const;
@@ -174,6 +175,27 @@ export interface SessionRow {
   reply: string;
   /** Firma przypięta do sesji (z GUS lub sam NIP); brak = rozmówca jeszcze nie podał NIP-u. */
   company?: CompanyRow | null;
+  /** Stan dostaw (leady i wysyłki); brak = nic jeszcze nie wysłano. */
+  delivery?: DeliverySummary | null;
+}
+
+const NO_DELIVERY: DeliverySummary = { hasLead: false, sentCount: 0, lockedEmail: null, lastSentAt: null };
+
+/** Stan CTA z sesji i dostaw (wspólny dla widoku rozmówcy i funkcji wysyłki). */
+export function ctaStateOf(args: {
+  revealed: boolean;
+  inputs: unknown;
+  params: unknown;
+  hasCompany: boolean;
+  delivery: DeliverySummary;
+}): CtaState {
+  return {
+    revealed: args.revealed,
+    hasCompany: args.hasCompany,
+    dataComplete: computeCalc(sanitizeInputs(args.inputs), resolveParams(args.params)) !== null,
+    sentCount: args.delivery.sentCount,
+    lockedEmail: args.delivery.lockedEmail,
+  };
 }
 
 export interface GuestView {
@@ -186,6 +208,10 @@ export interface GuestView {
   result: GuestResult | null;
   /** Firma rozmówcy w postaci bezpiecznej do pokazania (nazwa, adres, NIP); null = jeszcze brak NIP-u. */
   company: CompanyView | null;
+  /** NIP jest zablokowany (utworzono leada) — nie można go już zmienić. */
+  nipLocked: boolean;
+  /** Stan CTA „Przyślij mi kalkulację”: czy można wysłać, ile razy wysłano, zamaskowany adres. */
+  cta: CtaView;
 }
 
 export function buildGuestView(row: SessionRow): GuestView {
@@ -197,6 +223,16 @@ export function buildGuestView(row: SessionRow): GuestView {
     reply: row.reply,
     result: row.revealed ? buildGuestResult(inputs, resolveParams(row.params)) : null,
     company: row.company ? toCompanyView(row.company) : null,
+    nipLocked: (row.delivery ?? NO_DELIVERY).hasLead,
+    cta: buildCtaView(
+      ctaStateOf({
+        revealed: row.revealed,
+        inputs,
+        params: row.params,
+        hasCompany: Boolean(row.company),
+        delivery: row.delivery ?? NO_DELIVERY,
+      }),
+    ),
   };
 }
 

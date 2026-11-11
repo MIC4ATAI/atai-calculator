@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CalcParams } from '../calc/calculator';
 import type { CompanyView } from '../company/companyView';
+import type { LeadInfo } from '../cta/leadInfo';
 import { supabase } from '../lib/supabase';
 import { EXAMPLE_INPUTS, FIELD_ORDER } from './fields';
 import type { GuestInputKey, InputValue, SessionInputs } from './guestView';
 import {
   loadCompany,
+  loadLeadInfo,
   loadPresenterRow,
   patchSessionInputs,
   toPresenterRow,
@@ -51,6 +53,7 @@ export function usePresenterSession(id: string) {
   const [typing, setTyping] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [company, setCompany] = useState<CompanyView | null>(null);
+  const [leadInfo, setLeadInfo] = useState<LeadInfo | null>(null);
 
   const rowRef = useRef<PresenterRow | null>(null);
   const pendingRef = useRef<Pending>(EMPTY);
@@ -263,6 +266,26 @@ export function usePresenterSession(id: string) {
     };
   }, [companyId]);
 
+  // Stan CTA (zamrożenie, adres, wysyłki, błąd): raz przy otwarciu, a potem po zmianach sesji (trigger w bazie dotyka
+  // sesji po utworzeniu leada i po każdej próbie wysyłki). Zmiany czekają 600 ms, żeby nie odpytywać przy każdym wpisie.
+  const updatedAt = row?.updatedAt;
+  const revealedOnServer = row?.revealed ?? false;
+  const leadLoadedOnce = useRef(false);
+  useEffect(() => {
+    if (!updatedAt) return;
+    if (leadLoadedOnce.current && !revealedOnServer) return; // CTA jest możliwe dopiero po odsłonięciu wyniku
+    const timer = window.setTimeout(
+      () => {
+        leadLoadedOnce.current = true;
+        loadLeadInfo(id)
+          .then(setLeadInfo)
+          .catch(() => setOffline(true));
+      },
+      leadLoadedOnce.current ? 600 : 0,
+    );
+    return () => window.clearTimeout(timer);
+  }, [id, updatedAt, revealedOnServer]);
+
   const inputs = useMemo<SessionInputs>(() => ({ ...row?.inputs, ...pending.inputs }), [row, pending.inputs]);
   const params = useMemo<CalcParams | null>(
     () => (row ? { ...row.params, ...pending.params } : null),
@@ -276,6 +299,7 @@ export function usePresenterSession(id: string) {
     offline,
     row,
     company,
+    leadInfo,
     inputs,
     params,
     mixKh,

@@ -213,3 +213,67 @@ describe('buildGuestView — firma rozmówcy', () => {
     for (const hidden of ['011417295', 'regon', 'gus_raw', 'fetched_at', 'MAZOWIECKIE']) expect(json).not.toContain(hidden);
   });
 });
+
+describe('buildGuestView — stan CTA i blokada NIP-u', () => {
+  const company = {
+    nip: '5261040567',
+    regon: '011417295',
+    name: 'T-MOBILE POLSKA SPÓŁKA AKCYJNA',
+    street: 'ul. Test-Krucza',
+    building_no: '12',
+    unit_no: null,
+    postal_code: '02-674',
+    city: 'Warszawa',
+    voivodeship: 'MAZOWIECKIE',
+    gus_type: 'P',
+    gus_status: 'found',
+    fetched_at: '2026-11-11T12:00:00Z',
+  };
+  const delivery = (over: Partial<{ hasLead: boolean; sentCount: number; lockedEmail: string | null; lastSentAt: string | null }> = {}) => ({
+    hasLead: false,
+    sentCount: 0,
+    lockedEmail: null,
+    lastSentAt: null,
+    ...over,
+  });
+
+  it('wynik odsłonięty, firma podana, dane kompletne: CTA dostępne, 3 wysyłki do wykorzystania', () => {
+    const v = buildGuestView(row({ company }));
+    expect(v.cta).toEqual({ available: true, blockedReason: null, sentCount: 0, remaining: 3, emailMasked: null });
+    expect(v.nipLocked).toBe(false);
+  });
+
+  it('powody braku CTA: wynik nieodsłonięty, brak firmy, niekompletne dane', () => {
+    expect(buildGuestView(row({ company, revealed: false })).cta.blockedReason).toBe('not_revealed');
+    expect(buildGuestView(row({ company: null })).cta.blockedReason).toBe('no_company');
+    expect(buildGuestView(row({ company, inputs: { kh: 1 } })).cta.blockedReason).toBe('incomplete_data');
+  });
+
+  it('lead utworzony, ale nic jeszcze nie wysłano: NIP zablokowany, adres jeszcze nie', () => {
+    const v = buildGuestView(row({ company, delivery: delivery({ hasLead: true }) }));
+    expect(v.nipLocked).toBe(true);
+    expect(v.cta.emailMasked).toBeNull();
+    expect(v.cta.available).toBe(true);
+  });
+
+  it('po udanej wysyłce: zamaskowany adres, licznik i NIP zablokowany', () => {
+    const v = buildGuestView(row({ company, delivery: delivery({ hasLead: true, sentCount: 1, lockedEmail: 'jan.kowalski@firma.pl' }) }));
+    expect(v.cta).toMatchObject({ available: true, sentCount: 1, remaining: 2, emailMasked: 'j***@firma.pl' });
+    expect(v.nipLocked).toBe(true);
+  });
+
+  it('po wyczerpaniu limitu CTA jest niedostępne z powodem', () => {
+    const v = buildGuestView(row({ company, delivery: delivery({ hasLead: true, sentCount: 3, lockedEmail: 'jan@firma.pl' }) }));
+    expect(v.cta).toMatchObject({ available: false, blockedReason: 'limit_reached', remaining: 0 });
+  });
+
+  it('widok nigdy nie zawiera pełnego adresu e-mail ani znacznika czasu ostatniej wysyłki', () => {
+    const v = buildGuestView(
+      row({ company, delivery: delivery({ hasLead: true, sentCount: 1, lockedEmail: 'tajny.adres@firma.pl', lastSentAt: '2026-11-11T12:00:00Z' }) }),
+    );
+    const json = JSON.stringify(v);
+    expect(json).not.toContain('tajny.adres');
+    expect(json).not.toContain('lastSentAt');
+    expect(json).not.toContain('lockedEmail');
+  });
+});

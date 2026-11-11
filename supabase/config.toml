@@ -433,3 +433,7 @@ verify_jwt = false
 # Rozmówca podaje NIP; dane firmy z GUS przypinane do sesji po tokenie z linku (bez logowania).
 [functions.lookup-company]
 verify_jwt = false
+
+# Rozmówca prosi o kalkulację (CTA): zamrożenie stanu, Excel i mail w marce organizacji, po tokenie z linku.
+[functions.request-calculation]
+verify_jwt = false
