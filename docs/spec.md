@@ -224,6 +224,21 @@ Trzy ryzyka techniczne sprawdzone lokalnie w Edge Runtime (kod spiku wyrzucony):
   załącznik docierają bez zniekształceń, a załącznik da się odczytać z
   `/api/v1/message/<id>/part/<partID>`. Adres Mailpita jest konfigurowalny (zmienna środowiskowa).
 
+Generator Excela (`src/excel/`, krok 2.4):
+
+- **Jeden kod w Node i w Deno.** `src/excel/workbook.ts` importuje `exceljs` gołym specyfikatorem; funkcja
+  Edge Runtime mapuje go w własnym `deno.json` (`{"imports": {"exceljs": "npm:exceljs@4.4.0"}}`). Plik zbudowany
+  w Deno jest identyczny z plikiem zbudowanym w Node (porównanie komórka po komórce: 243 komórki, 0 różnic, wraz
+  ze strefą czasową Europe/Warsaw w nazwie zakładki).
+- **Parytet z `src/calc`.** Formuły zakładki „Twoja symulacja” (`src/excel/layout.ts`) to druga implementacja
+  wzorów w języku Excela. Test (`parity.test.ts`) liczy je silnikiem HyperFormula i porównuje z `calculate()`
+  i `mix()` dla ośmiu zestawów danych (w tym granica `floorSafe`, bez przychodu, współczynnik 1), także po
+  „ręcznej” zmianie pól, oraz zawiera kontrole negatywne. Zmiana wzorów w `src/calc` bez zmiany Excela wywala test.
+- **Licencja HyperFormula to GPL-3.0** — używana wyłącznie jako zależność deweloperska do testów; nie trafia do
+  aplikacji ani do Edge Functions. Do decyzji właściciela, czy to akceptowalne dla kodu zastrzeżonego.
+- **Jawne ciche założenia.** Żeby formuły działały, cel korzyści, dni robocze i godziny są w Excelu zwykłymi,
+  widocznymi komórkami — rozmówca zobaczy je po CTA.
+
 ## Infrastruktura
 
 - GitHub: organizacja MIC4ATAI, repozytorium `atai-calculator` (prywatne).
