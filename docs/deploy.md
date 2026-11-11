@@ -210,6 +210,14 @@ Uzupełnij (SQL editor, jako właściciel; edytować może też właściciel org
   `{organization}` zostanie zastąpione nazwą). Pusta = treść domyślna z `src/cta/notice.ts`.
 - `organizations.brand`: nadawca, kolor, logo; `default_params`: założenia kalkulatora, jeśli mają różnić się od wbudowanych.
 
+**Strona polityki prywatności w aplikacji:** publiczna podstrona `/polityka-prywatnosci` (treść i dane administratora w `src/legal/policy.ts`,
+konfiguracja `MITAX_POLICY`). Dopóki brakuje danych (adres siedziby, adres e-mail do kontaktu, okres przechowywania, sposób
+realizacji żądania usunięcia, szczegóły przekazywania poza EOG) albo `legalReviewedAt` jest puste, strona pokazuje ostrzeżenie
+„Projekt dokumentu” i prosi wyszukiwarki o nieindeksowanie. **Nie wpisuj jej w `organizations.privacy_policy_url`, dopóki
+nie jest ostateczna.** Kolejność: uzupełnij dane w `MITAX_POLICY` → prawnik zatwierdza treść → wpisz `legalReviewedAt` (data)
+→ wdróż → ustaw `privacy_policy_url = https://atai.mitax.pl/polityka-prywatnosci`. Kolejna organizacja wymaga własnej
+konfiguracji (administratorem jest organizacja, nie platforma).
+
 **Treści do potwierdzenia z prawnikiem przed pierwszą rozmową** (stałe w kodzie, oznaczone „BRZMIENIE DO POTWIERDZENIA”):
 `DEFAULT_CTA_NOTICE` (`src/cta/notice.ts`: m.in. podstawa prawna, okres przechowywania, odbiorcy danych: dostawca poczty
 i operator platformy jako podmiot przetwarzający, dane kontaktowe administratora), `ONE_TIME_NOTICE_TEXT` (stopka maila)

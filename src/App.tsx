@@ -9,6 +9,7 @@ import { NotificationsPage } from './profile/NotificationsPage';
 import { OrgProvider } from './org/OrgProvider';
 import { OrgSelectPage } from './org/OrgSelectPage';
 import { RequireOrg } from './org/RequireOrg';
+import { PrivacyPolicyPage } from './legal/PrivacyPolicyPage';
 import { GuestPage } from './session/GuestPage';
 import { SessionPage } from './session/SessionPage';
 
@@ -18,6 +19,8 @@ export function App() {
       <OrgProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Polityka prywatności administratora: publiczna, bez logowania. */}
+          <Route path="/polityka-prywatnosci" element={<PrivacyPolicyPage />} />
           {/* Widok rozmówcy: otwierany z linku, bez logowania. */}
           <Route path="/s/:token" element={<GuestPage />} />
           <Route element={<RequireAuth />}>
