@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { publicAppOrigin } from '../lib/publicUrl';
 import { useOrgs } from '../org/OrgProvider';
 import { formatNip } from '../company/companyView';
 import { loadVisitStats } from '../followup/followUpApi';
@@ -109,7 +110,7 @@ export function HomePage() {
                 )}
               </div>
               <div className="session-actions">
-                <CopyButton text={guestLink(window.location.origin, s.token)} />
+                <CopyButton text={guestLink(publicAppOrigin(), s.token)} />
                 <Link to={`/session/${s.id}`} className="button-link">
                   Otwórz
                 </Link>

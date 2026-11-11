@@ -127,12 +127,21 @@ Vercel przepisuje trasy SPA. Wszystkie kontrole mają przejść.
 1. Import repozytorium; preset **Vite**, build `npm run build`, katalog wyjściowy `dist` (bez zmian względem domyślnych).
 2. **Zmienne środowiskowe (Production i Preview):** `VITE_SUPABASE_URL` = `SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = klucz
    **publiczny** (anon/publishable). **Nigdy** klucz service role: wszystko z prefiksem `VITE_` trafia do przeglądarki.
+   Zmienne `POSTGRES_*`, `SUPABASE_JWT_SECRET` i `SUPABASE_SECRET_KEY`, które dodaje integracja Supabase–Vercel, usuń
+   (frontend ich nie używa, a omijają RLS).
+   **`VITE_PUBLIC_APP_URL` (Production) = `APP_URL`** (np. `https://atai.mitax.pl`): adres używany w linku dla rozmówcy. Bez niej link
+   powstaje z adresu, z którego konsultant otworzył aplikację, a adresy `*-<team>.vercel.app` i `…-git-<branch>-…vercel.app` są
+   chronione logowaniem Vercela (rozmówca zobaczyłby logowanie). Zmienna jest wkompilowywana w czasie budowania: po jej
+   dodaniu lub zmianie trzeba **ponownie wdrożyć** projekt (Redeploy).
 3. `vercel.json` w repozytorium przepisuje wszystkie ścieżki na `index.html` (trasy `/s/<token>`, `/session/<id>` działają
    po odświeżeniu). Skrypt `smoke` to sprawdza.
 4. **Plan i konto:** zgodnie ze specyfikacją Hobby wyłącznie do budowy i testów; **przed pierwszą rozmową z prawdziwym klientem
    team na planie Pro i transfer projektu** 
-5. **Domena:** dodaj `atai.mitax.pl` w ustawieniach projektu i skonfiguruj rekord DNS podany przez Vercel. Po zmianie adresu
-   zaktualizuj Site URL i Redirect URLs (sekcja 2) oraz `APP_BASE_URL` (sekcja 3).
+5. **Domena:** dodaj `atai.mitax.pl` w ustawieniach projektu i skonfiguruj rekord DNS u operatora strefy. **Uwaga:** jeśli nazwa
+   ma już inne rekordy (np. TXT z SPF dla MailerSend, gdy z tej poddomeny wysyłasz maile), **nie dodasz CNAME** (CNAME nie
+   współistnieje z innymi rekordami tej samej nazwy): użyj rekordu **A** (`216.198.79.1`, opcjonalnie `64.29.17.1`) i zostaw SPF.
+   Strefa na zewnętrznych serwerach nazw (np. OVH) nie pozwala Vercelowi dopisać rekordów samemu. Po zmianie adresu zaktualizuj Site
+   URL i Redirect URLs (sekcja 2), `APP_BASE_URL` (sekcja 3) i `VITE_PUBLIC_APP_URL`.
 6. Podglądy (Preview): chroń je opcją *Deployment Protection*, jeśli łączą się z projektem produkcyjnym Supabase.
 
 ## 5. MailerSend (wysyłka kalkulacji)
