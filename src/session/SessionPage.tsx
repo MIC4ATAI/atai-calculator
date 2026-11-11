@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { mix } from '../calc/calculator';
+import { publicAppOrigin } from '../lib/publicUrl';
 import type { LeadInfo } from '../cta/leadInfo';
 import { CopyButton } from './CopyButton';
 import { FIELD_LABELS, FIELD_ORDER, FIELD_UNITS, isDefaultValue } from './fields';
@@ -51,7 +52,7 @@ function PresenterSession({ id }: { id: string }) {
     );
   }
 
-  const link = guestLink(window.location.origin, row.token);
+  const link = guestLink(publicAppOrigin(), row.token);
   const currentMix = result ? mix(result, s.mixKh ?? result.maksNowychKh, wspCzasu) : null;
   const maxMix = result ? mix(result, result.maksNowychKh, wspCzasu) : null;
 
