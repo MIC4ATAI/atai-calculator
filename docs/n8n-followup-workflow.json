@@ -2,38 +2,65 @@
   "name": "Kalkulator BR: alert o powrocie klienta",
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "atai-followup",
-        "responseMode": "responseNode",
-        "options": {}
-      },
       "id": "a1000000-0000-4000-8000-000000000001",
       "name": "Webhook z kalkulatora",
       "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
+      "typeVersion": 2.2,
       "position": [
         0,
-        0
+        96
       ],
-      "webhookId": "a1000000-0000-4000-8000-0000000000a1"
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "atai-followup",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      }
     },
     {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
-        "jsCode": "// Weryfikacja podpisu żądania z kalkulatora (HMAC-SHA256) i deduplikacja po X-Event-Id.\n// Wymaga w n8n: zmiennej środowiskowej ATAI_WEBHOOK_SECRET (ten sam sekret co N8N_WEBHOOK_SECRET w Supabase)\n// oraz NODE_FUNCTION_ALLOW_BUILTIN=crypto (dostęp do modułu crypto w węźle Code).\nconst crypto = require('crypto');\nconst { headers, body } = $input.first().json;\nconst secret = $env.ATAI_WEBHOOK_SECRET;\nconst reject = (reason, status) => [{ json: { send: false, status, reason } }];\n\nif (!secret) return reject('brak_sekretu_w_n8n', 500);\n\nconst timestamp = String(headers['x-timestamp'] || '');\nif (!/^[0-9]{1,12}$/.test(timestamp)) return reject('zly_znacznik_czasu', 401);\nif (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return reject('przeterminowane', 401);\n\n// Treść podpisana po stronie kalkulatora to JSON.stringify(payload); parsowanie i ponowna serializacja daje ten sam tekst.\nconst expected = 'sha256=' + crypto.createHmac('sha256', secret).update(timestamp + '.' + JSON.stringify(body)).digest('hex');\nconst given = Buffer.from(String(headers['x-signature'] || ''));\nconst wanted = Buffer.from(expected);\nif (given.length !== wanted.length || !crypto.timingSafeEqual(given, wanted)) return reject('zly_podpis', 401);\n\n// Dostarczanie jest „co najmniej raz”: ten sam alert może przyjść dwa razy (X-Event-Id jest taki sam).\nconst eventId = String(headers['x-event-id'] || body.eventId || '');\nconst store = $getWorkflowStaticData('global');\nconst seen = Array.isArray(store.seen) ? store.seen : [];\nif (eventId && seen.includes(eventId)) return [{ json: { send: false, status: 200, reason: 'duplikat' } }];\nstore.seen = [...seen, eventId].slice(-500);\n\nreturn [{ json: { send: true, status: 200, chatId: body.channel.target, text: body.message + '\\n' + body.sessionUrl } }];\n"
-      },
       "id": "a1000000-0000-4000-8000-000000000002",
+      "name": "Oblicz podpis (HMAC)",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ ($json.headers['x-timestamp'] || '') + '.' + JSON.stringify($json.body) }}",
+        "dataPropertyName": "expectedHmac",
+        "encoding": "hex",
+        "secret": "WKLEJ_SEKRET_TUTAJ"
+      },
+      "notes": "Sekret współdzielony z kalkulatorem (N8N_WEBHOOK_SECRET w Supabase). Wklej go w polu Secret. Dopóki wartością jest WKLEJ_SEKRET_TUTAJ, workflow odrzuca żądania (500)."
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000003",
       "name": "Sprawdź podpis i duplikaty",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
-        0
-      ]
+        448,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Weryfikacja podpisu żądania z kalkulatora (HMAC-SHA256) i deduplikacja po X-Event-Id.\n// HMAC liczy poprzedni węzeł \"Oblicz podpis (HMAC)\" z sekretu wpisanego w jego polu Secret: ten kod nie używa require ani $env,\n// więc nie wymaga żadnych zmian w konfiguracji serwera n8n.\nconst { headers, body, expectedHmac } = $input.first().json;\nconst reject = (reason, status) => [{ json: { send: false, status: status, reason: reason } }];\nconst esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\n// Zabezpieczenie: dopóki w węźle Crypto jest sekret zastępczy lub zbyt krótki, nie przyjmujemy niczego (fail-closed).\nconst secret = String($node['Oblicz podpis (HMAC)'].parameter.secret || '');\nif (secret === 'WKLEJ_SEKRET_TUTAJ' || secret.length < 16) return reject('sekret_nie_ustawiony', 500);\n\nconst timestamp = String(headers['x-timestamp'] || '');\nif (!/^[0-9]{1,12}$/.test(timestamp)) return reject('zly_znacznik_czasu', 401);\nif (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return reject('przeterminowane', 401);\n\n// Porównanie w stałym czasie (bez zdradzania, ile pierwszych znaków się zgadza).\nconst given = String(headers['x-signature'] || '');\nconst wanted = 'sha256=' + String(expectedHmac || '');\nlet diff = given.length ^ wanted.length;\nfor (let i = 0; i < wanted.length; i++) {\n  diff |= (given.charCodeAt(i) || 0) ^ wanted.charCodeAt(i);\n}\nif (diff !== 0 || !expectedHmac) return reject('zly_podpis', 401);\n\n// Dostarczanie jest \"co najmniej raz\": ten sam alert może przyjść dwa razy (X-Event-Id jest taki sam).\nconst eventId = String(headers['x-event-id'] || body.eventId || '');\nconst store = $getWorkflowStaticData('global');\nconst seen = Array.isArray(store.seen) ? store.seen : [];\nif (eventId && seen.includes(eventId)) return [{ json: { send: false, status: 200, reason: 'duplikat' } }];\nstore.seen = [...seen, eventId].slice(-500);\n\n// Tekst alertu: treść escapowana pod tryb HTML Telegrama, potem link do widoku konsultanta.\nreturn [{ json: { send: true, status: 200, chatId: body.channel.target, text: esc(body.message) + '\\n' + body.sessionUrl } }];\n"
+      }
     },
     {
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "name": "Czy wysłać alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        672,
+        96
+      ],
       "parameters": {
         "conditions": {
           "options": {
@@ -44,84 +71,87 @@
           },
           "conditions": [
             {
-              "id": "a1000000-0000-4000-8000-0000000000c1",
               "leftValue": "={{ $json.send }}",
-              "rightValue": true,
               "operator": {
                 "type": "boolean",
                 "operation": "true",
                 "singleValue": true
-              }
+              },
+              "rightValue": ""
             }
           ],
           "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "a1000000-0000-4000-8000-000000000003",
-      "name": "Czy wysłać alert?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        440,
-        0
-      ]
+        }
+      }
     },
     {
-      "parameters": {
-        "chatId": "={{ $json.chatId }}",
-        "text": "={{ $json.text }}",
-        "additionalFields": {
-          "appendAttribution": false
-        }
-      },
-      "id": "a1000000-0000-4000-8000-000000000004",
+      "id": "a1000000-0000-4000-8000-000000000005",
       "name": "Wyślij na Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        660,
-        -100
+        896,
+        0
       ],
-      "credentials": {}
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      }
     },
     {
+      "id": "a1000000-0000-4000-8000-000000000006",
+      "name": "Odpowiedz 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1120,
+        0
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "ok",
         "options": {
           "responseCode": 200
         }
-      },
-      "id": "a1000000-0000-4000-8000-000000000005",
-      "name": "Odpowiedz 200",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        880,
-        -100
-      ]
+      }
     },
     {
+      "id": "a1000000-0000-4000-8000-000000000007",
+      "name": "Odpowiedz (duplikat lub odrzucenie)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        896,
+        192
+      ],
       "parameters": {
         "respondWith": "text",
         "responseBody": "={{ $json.reason }}",
         "options": {
           "responseCode": "={{ $json.status }}"
         }
-      },
-      "id": "a1000000-0000-4000-8000-000000000006",
-      "name": "Odpowiedz (duplikat lub odrzucenie)",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        660,
-        120
-      ]
+      }
     }
   ],
   "connections": {
     "Webhook z kalkulatora": {
+      "main": [
+        [
+          {
+            "node": "Oblicz podpis (HMAC)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Oblicz podpis (HMAC)": {
       "main": [
         [
           {

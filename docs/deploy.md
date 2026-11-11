@@ -167,7 +167,7 @@ i zapisu sesji). Procedura dla macOS:
 | Sekret | Gdzie zmienić | Jak sprawdzić prawdziwe użycie |
 | --- | --- | --- |
 | `MAILERSEND_API_TOKEN` | sekrety funkcji (krok 2) | jedna prawdziwa prośba o kalkulację na własny adres (CTA): mail dochodzi; 401 od MailerSend w logu funkcji = zły token |
-| `N8N_WEBHOOK_SECRET` | sekrety funkcji **i** zmienna `ATAI_WEBHOOK_SECRET` w n8n, **jednocześnie** (inaczej n8n odrzuca podpisy: 401) | wywołanie próbne z `n8n-followup.md`, sekcja „Sprawdzenie” |
+| `N8N_WEBHOOK_SECRET` | sekrety funkcji **i** pole Secret węzła „Oblicz podpis (HMAC)” w n8n, **jednocześnie** (inaczej n8n odrzuca podpisy: 401) | wywołanie próbne z `n8n-followup.md`, sekcja „Sprawdzenie” |
 | `DISPATCH_SECRET` | sekrety funkcji **i** Vault: `select vault.update_secret('<id>', '<nowa wartość>')` (id z `select id, name from vault.secrets;`) | `smoke` (401 bez sekretu), a po wpisie w Vault zaległy alert dochodzi bez ruchu klienta |
 | `GUS_API_KEY` | sekrety funkcji | NIP prawdziwej firmy zwraca jej prawdziwą nazwę |
 | Dane SMTP dla Auth (maile logowania) | **panel** Supabase: *Authentication → Emails → SMTP Settings* (nie sekrety funkcji) | nowy link logowania dochodzi |
@@ -227,10 +227,10 @@ Vercel przepisuje trasy SPA. Wszystkie kontrole mają przejść.
 ## 7. n8n i Telegram (alerty o powrocie klienta)
 
 Pełna instrukcja, format żądania i szablon workflow: [`n8n-followup.md`](n8n-followup.md). Skrót: bot Telegram (BotFather),
-zmienne `ATAI_WEBHOOK_SECRET` i `NODE_FUNCTION_ALLOW_BUILTIN=crypto` w n8n, import `n8n-followup-workflow.json`,
+import `n8n-followup-workflow.json` (bez zmian na serwerze: podpis liczy węzeł Crypto), sekret w polu Secret tego węzła,
 poświadczenia bota, **aktywacja workflow**, adres produkcyjny webhooka do `N8N_WEBHOOK_URL`. Każdy konsultant wpisuje swój
-identyfikator czatu na stronie *Powiadomienia* w aplikacji. Szablon nie był jeszcze uruchomiony w żywej n8n:
-wykonaj próbę z sekcji „Sprawdzenie” w tej instrukcji.
+identyfikator czatu na stronie *Powiadomienia* w aplikacji. Szablon przeszedł próby w n8n na danych testowych (podpis, zmieniona treść, stary znacznik, sekret zastępczy);
+wykonaj próbę end-to-end z sekcji „Sprawdzenie” w tej instrukcji.
 
 **Instancja n8n działa na własnym serwerze w Polsce** (stan na 2026-11-11), więc dane z alertów nie opuszczają EOG po drodze
 do n8n. Wymagania z tego wynikające:
