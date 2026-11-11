@@ -81,3 +81,8 @@ Zmiana jednego znaku w `$BODY` po podpisaniu: 401.
 
 Przez n8n (infrastrukturę operatora) przechodzą: nazwa organizacji, imię konsultanta, jego identyfikator czatu
 i link do sesji. Nie są to dane leadów, ale są to dane osobowe konsultanta, więc powinny być ujęte w umowie powierzenia.
+
+Instancja n8n działa na własnym serwerze w Polsce, więc ten etap przepływu pozostaje w EOG i nie wymaga mechanizmu przekazania.
+Wiadomość wysłana dalej przez bota trafia na serwery Telegrama (poza naszą kontrolą i najpewniej poza EOG): zawiera tylko
+nazwę organizacji, krótki tekst o zdarzeniu i link do widoku konsultanta, bez danych firmy ani adresu e-mail klienta. Treść
+wykonań w n8n warto okresowo czyścić (patrz `deploy.md`, sekcja 7).
