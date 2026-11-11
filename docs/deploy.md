@@ -142,6 +142,38 @@ frontendu (paczka rośnie do 147 MB); (2) `request-calculation` importuje `excel
 
 Nie ustawiaj `MAILPIT_URL`. Po zmianie sekretów funkcje używają nowych wartości przy następnym uruchomieniu instancji.
 
+### Rotacja i zmiana sekretów (bez ujawniania wartości)
+
+Wartość sekretu **nie może** pojawić się w repozytorium, w poleceniu wpisanym wprost ani w czacie z asystentem (trafia do historii powłoki
+i zapisu sesji). Procedura dla macOS:
+
+1. W panelu dostawcy (np. MailerSend) utwórz **nowy** sekret i skopiuj go do schowka (Cmd+C).
+2. Ustaw go, wstawiając zawartość schowka i od razu czyszcząc schowek:
+
+   ```bash
+   supabase secrets set --yes MAILERSEND_API_TOKEN="$(pbpaste)"; pbcopy </dev/null
+   ```
+
+   **Nie używaj `read -s`** w poleceniach uruchamianych z asystenta (`!`): nie ma tam interaktywnego terminala, `read` nie dostaje
+   niczego i sekret zostaje ustawiony na **pustą** wartość bez żadnego komunikatu błędu (tak się stało przy pierwszej rotacji tokenu
+   MailerSend, a `request-calculation` zwracał wtedy 500). W zwykłym oknie terminala `read -s T; … "$T"; unset T` działa poprawnie.
+3. **Sprawdź, że wartość nie jest pusta.** `supabase secrets list` pokazuje tylko skrót SHA-256 (nigdy wartość). Skrót pustego napisu to
+   `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`; jeśli sekret ma taki skrót, jest pusty i trzeba go ustawić ponownie.
+4. Uruchom `npm run smoke -- <SUPABASE_URL> <klucz publiczny> <APP_URL>` (musi przejść w całości), a potem **sprawdź prawdziwe użycie**
+   (patrz tabela). `smoke` potwierdza kompletność konfiguracji, nie to, czy dostawca akceptuje nową wartość.
+5. **Dopiero po udanym teście unieważnij stary sekret** u dostawcy. Odwrotna kolejność zostawia aplikację bez wysyłki, jeśli nowa wartość
+   okaże się błędna.
+
+| Sekret | Gdzie zmienić | Jak sprawdzić prawdziwe użycie |
+| --- | --- | --- |
+| `MAILERSEND_API_TOKEN` | sekrety funkcji (krok 2) | jedna prawdziwa prośba o kalkulację na własny adres (CTA): mail dochodzi; 401 od MailerSend w logu funkcji = zły token |
+| `N8N_WEBHOOK_SECRET` | sekrety funkcji **i** zmienna `ATAI_WEBHOOK_SECRET` w n8n, **jednocześnie** (inaczej n8n odrzuca podpisy: 401) | wywołanie próbne z `n8n-followup.md`, sekcja „Sprawdzenie” |
+| `DISPATCH_SECRET` | sekrety funkcji **i** Vault: `select vault.update_secret('<id>', '<nowa wartość>')` (id z `select id, name from vault.secrets;`) | `smoke` (401 bez sekretu), a po wpisie w Vault zaległy alert dochodzi bez ruchu klienta |
+| `GUS_API_KEY` | sekrety funkcji | NIP prawdziwej firmy zwraca jej prawdziwą nazwę |
+| Dane SMTP dla Auth (maile logowania) | **panel** Supabase: *Authentication → Emails → SMTP Settings* (nie sekrety funkcji) | nowy link logowania dochodzi |
+
+Sekrety wymieniane razem (webhook n8n, Vault) ustawiaj w jednym oknie czasowym, najlepiej poza godzinami, w których ktoś prowadzi rozmowę.
+
 **Po wdrożeniu:** `npm run smoke -- <SUPABASE_URL> <klucz publiczny> <APP_URL>`. Skrypt używa tylko klucza publicznego i
 nieistniejących tokenów (niczego nie tworzy): sprawdza odpowiedzi publicznych funkcji, że `dispatch-notifications` odrzuca
 żądania bez sekretu (503 oznacza brak `DISPATCH_SECRET`), że anonimowy odczyt 10 kluczowych tabel jest zabroniony oraz że
@@ -272,5 +304,5 @@ Szablon workflow n8n nie był uruchomiony w żywej instancji: wykonaj próbę z 
   osobna, udokumentowana migracja z jawnym wyłączeniem triggera dla wskazanych rekordów.
 - Brak przycisku „wyślij alert testowy” na stronie *Powiadomienia*: błędny, ale poprawnie sformatowany identyfikator czatu nie daje sygnału.
 - Brak edycji marki, klauzuli i linku do polityki w interfejsie (etap 4): zmiany przez SQL.
-- Rotacja sekretów: `MAILERSEND_API_TOKEN`, `N8N_WEBHOOK_SECRET` (zmień w Supabase **i** w n8n jednocześnie), `DISPATCH_SECRET`
-  (zmień w sekretach funkcji **i** w Vault).
+- Rotacja sekretów: procedura i kolejność w sekcji 3 („Rotacja i zmiana sekretów”). Rotacja nie jest zautomatyzowana ani
+  przypominana: ustal terminarz (np. po odejściu osoby z dostępem do panelu dostawcy albo gdy sekret mógł zostać ujawniony).
