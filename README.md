@@ -92,12 +92,31 @@ npm run build        # typecheck + build produkcyjny
 supabase db reset    # czysta baza z migracji + seed
 ```
 
+### Follow-up i powiadomienia (etap 3)
+
+Po wysłaniu kalkulacji klient może wracać do swojego linku: u klienta stały pasek „Wynik z rozmowy” z różnicą względem
+bieżącej symulacji i przyciskiem „Wróć do stanu z rozmowy”, a konsultant widzi powroty i zmiany (plakietka „Klient wrócił”
+na liście sesji, widok `/session/<id>/follow-up` z trzema kolumnami: rozmowa, ostatnia symulacja, zmiany).
+
+Powiadomienia przez n8n (Telegram) są opcjonalne:
+
+1. Konsultant ustawia identyfikator czatu na stronie **Powiadomienia** (`/notifications`).
+2. W `supabase/functions/.env` ustaw `N8N_WEBHOOK_URL` i `N8N_WEBHOOK_SECRET` (min. 16 znaków). Lokalnie adres może wskazywać
+   odbiornik na hoście: `http://host.docker.internal:54399/hook` (http wolno tylko dla localhost i host.docker.internal).
+   Pusty `N8N_WEBHOOK_URL` wyłącza wysyłkę. Po zmianie pliku `functions serve` się restartuje.
+3. Workflow po stronie n8n i format żądania: [`docs/n8n-followup.md`](docs/n8n-followup.md) (szablon do importu:
+   `docs/n8n-followup-workflow.json`).
+
 ### Testy end-to-end (`npm run test:e2e`)
 
 Sprawdzają prawdziwe Edge Functions, bazę i Mailpit: NIP i GUS, CTA, zamrożenie stanu, Excel odczytany z załącznika,
 blokady i limit wysyłek. Wymagają działających `supabase start`, `supabase functions serve` i świeżej bazy z seedem
 (`supabase db reset`); skrypt sprawdza to i podpowiada, czego brakuje. Klucze lokalne pobiera sam ze
 `supabase status` i przekazuje tylko procesowi testów.
+
+Scenariusze powiadomień (`notifications.e2e.test.ts`) uruchamiają odbiornik webhooka na hoście i potrzebują w
+`supabase/functions/.env` zmiennych `N8N_WEBHOOK_URL=http://host.docker.internal:54399/hook` i `N8N_WEBHOOK_SECRET`
+(skrypt czyta port i sekret z tego pliku, nie wypisuje ich). Bez nich te scenariusze są pomijane, z ostrzeżeniem.
 
 Testy zapisują dane w lokalnej bazie (leady są tylko do dopisywania), więc **przed `npm run test:db` zrób
 `supabase db reset`**: testy bazy liczą wiersze na czystym stanie. Część scenariuszy czeka ok. 10 s na koniec okna
@@ -117,6 +136,9 @@ src/company/     NIP i firma: mapowanie GUS, widok firmy, krok „Podaj NIP”
 src/cta/         prośba o kalkulację: polityka (limity, blokady), składanie maila ze snapshotu, karta rozmówcy
 src/excel/       skoroszyt z kalkulacją (wartości + formuły „Twoja symulacja”), testy parytetu z src/calc
 src/email/       szablon maila, marka organizacji, adaptery MailerSend i Mailpit
+src/followup/    follow-up: stan z rozmowy, porównanie, oś czasu, pasek klienta, widok konsultanta
+src/notify/      powiadomienia dla konsultanta: ładunek, podpis HMAC, dostarczanie do n8n, walidacja adresata
+src/profile/     strona „Powiadomienia” (adresat alertów)
 src/e2e/         testy end-to-end (poza `npm test`)
 src/auth/        logowanie magic linkiem
 src/org/         wybór organizacji

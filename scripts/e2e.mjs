@@ -14,6 +14,7 @@
  * Testy zapisują dane w lokalnej bazie (leady i dostawy są tylko do dopisywania) — `supabase db reset` je czyści.
  */
 import { execFileSync, spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 
 function fail(message) {
   console.error(`\n✖ ${message}\n`);
@@ -55,6 +56,37 @@ try {
   fail('Mailpit nie odpowiada (powinien działać razem z `supabase start`).');
 }
 
+// Powiadomienia: testy uruchamiają odbiornik webhooka na hoście, a funkcje (w kontenerze) wysyłają do niego przez adres
+// z N8N_WEBHOOK_URL w supabase/functions/.env (plik lokalny, w .gitignore). Port i sekret czytamy stamtąd i przekazujemy
+// tylko procesowi testów; sekret nie jest wypisywany. Bez tej konfiguracji scenariusze powiadomień są pomijane.
+let webhookPort = '';
+let webhookSecret = '';
+const functionsEnv = new URL('../supabase/functions/.env', import.meta.url);
+if (existsSync(functionsEnv)) {
+  const vars = Object.fromEntries(
+    readFileSync(functionsEnv, 'utf8')
+      .split('\n')
+      .map((line) => line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/))
+      .filter(Boolean)
+      .map((m) => [m[1], m[2]]),
+  );
+  try {
+    const url = new URL(vars.N8N_WEBHOOK_URL ?? '');
+    if (['host.docker.internal', 'localhost', '127.0.0.1'].includes(url.hostname) && url.port && vars.N8N_WEBHOOK_SECRET) {
+      webhookPort = url.port;
+      webhookSecret = vars.N8N_WEBHOOK_SECRET;
+    }
+  } catch {
+    /* brak lub zły adres — powiadomienia zostaną pominięte */
+  }
+}
+if (!webhookPort) {
+  console.warn(
+    '\n⚠ Scenariusze powiadomień zostaną pominięte: ustaw w supabase/functions/.env N8N_WEBHOOK_URL=http://host.docker.internal:54399/hook\n' +
+      '  oraz N8N_WEBHOOK_SECRET (min. 16 znaków) i zrestartuj `supabase functions serve`.\n',
+  );
+}
+
 const child = spawn('npx', ['vitest', 'run', '--config', 'vitest.e2e.config.ts', ...process.argv.slice(2)], {
   stdio: 'inherit',
   env: {
@@ -63,6 +95,7 @@ const child = spawn('npx', ['vitest', 'run', '--config', 'vitest.e2e.config.ts',
     E2E_PUBLISHABLE_KEY: publishableKey,
     E2E_SERVICE_ROLE_KEY: serviceRoleKey,
     E2E_MAILPIT_URL: mailpitUrl,
+    ...(webhookPort ? { E2E_WEBHOOK_PORT: webhookPort, E2E_WEBHOOK_SECRET: webhookSecret } : {}),
   },
 });
 child.on('exit', (code, signal) => process.exit(signal ? 1 : (code ?? 1)));

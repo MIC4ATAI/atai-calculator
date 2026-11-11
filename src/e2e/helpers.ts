@@ -23,6 +23,8 @@ export const admin = createClient(API_URL, need('E2E_SERVICE_ROLE_KEY'), { auth:
 /** Dane z supabase/seed.sql: organizacja MITAX i konsultantka Ola. */
 export const MITAX_ORG = '10000000-0000-4000-8000-000000000001';
 export const OLA = '00000000-0000-4000-8000-000000000003';
+/** Marek: właściciel MITAX; w seedzie nie ma adresata powiadomień (test „brak adresata”). */
+export const MAREK = '00000000-0000-4000-8000-000000000002';
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -62,11 +64,11 @@ export interface TestSession {
 }
 
 /** Nowa sesja konsultantki Oli w MITAX (jak po „Nowa sesja”, ale bez logowania). */
-export async function newSession(label: string): Promise<TestSession> {
+export async function newSession(label: string, consultantId: string = OLA): Promise<TestSession> {
   const token = `e2e-${label}-${unique()}${unique()}`;
   const { data, error } = await admin
     .from('calc_sessions')
-    .insert({ org_id: MITAX_ORG, consultant_id: OLA, token })
+    .insert({ org_id: MITAX_ORG, consultant_id: consultantId, token })
     .select('id, token')
     .single();
   if (error) {

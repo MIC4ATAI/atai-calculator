@@ -315,7 +315,7 @@ Rzeczy znane z etapu 1, które trzeba zamknąć przed produkcją:
 - **Marka organizacji** (logo, kolory, nadawca maili, osoba konsultanta) w widoku rozmówcy —
   zgodnie z sekcją „SaaS”; etap 1 pokazuje neutralny widok.
 
-### Stan etapu 3 (w toku)
+### Stan etapu 3 (zrobiony)
 
 Spik techniczny (2026-11-11, kod jednorazowy usunięty): z kontenera Edge Runtime działa `fetch` do hosta
 (`host.docker.internal`), `EdgeRuntime.waitUntil` dokańcza zadanie po wysłaniu odpowiedzi (odpowiedź po 0,1 s,
@@ -363,3 +363,20 @@ wyłącza wysyłkę (alerty czekają w outboxie); http jest dopuszczone tylko dl
 ma min. 16 znaków, przekierowania nie są śledzone. Adresata ustawia konsultant na stronie „Powiadomienia”
 (`/notifications`): identyfikator czatu Telegram, pusty = wyłączone. Brak osobnej funkcji `dispatch-notifications` na
 cron — na liście „przed produkcją” (konsultant, do którego nikt nie wraca, nie wygeneruje ponowień zaległych wpisów).
+
+Testy i dokumentacja (krok 3.6): `src/e2e/notifications.e2e.test.ts` (10 scenariuszy z odbiornikiem webhooka w teście, który
+weryfikuje podpis i świeżość jak n8n): alert „wrócił” z samym minimum i linkiem, jeden alert „zmienił dane” na wizytę,
+restore bez dodatkowego alertu, nowa wizyta po 31 min ciszy, wizyta rozpoczęta zmianą, konsultant bez adresata (`skipped`),
+awaria odbiornika i ponowienie z tym samym `eventId`, wolny odbiornik nie opóźnia odpowiedzi klienta, równoległe otwarcia z
+kilku kart (jedna wizyta, jeden alert), brak alertów przed zamrożeniem. Skrypt `npm run test:e2e` czyta port i sekret z
+`supabase/functions/.env` (bez tych zmiennych scenariusze są pomijane z ostrzeżeniem). Instrukcja dla n8n i szablon do
+importu: `docs/n8n-followup.md`, `docs/n8n-followup-workflow.json` (kod węzła weryfikującego podpis jest testowany na
+prawdziwych żądaniach z kalkulatora; sam szablon nie był jeszcze uruchomiony w żywej instancji n8n). Test e2e wykrył przy
+okazji, że współdzielony odbiornik musi przypisywać zaprogramowane awarie do sesji, bo równoległe pliki testów dostarczają
+alerty tym samym kanałem.
+
+Do zamknięcia przed produkcją (etap 3): funkcja `dispatch-notifications` wywoływana z crona (ponowienia zaległych alertów
+nie zależą wtedy od ruchu klienta), przycisk „wyślij alert testowy” na stronie „Powiadomienia”, uruchomienie szablonu w żywej
+instancji n8n, ujęcie w umowie powierzenia danych konsultanta przechodzących przez n8n, ewentualny limit zapytań do
+`guest-session` na IP.
+
