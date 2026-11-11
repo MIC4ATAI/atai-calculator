@@ -29,7 +29,7 @@ stronie serwera, żadnych sekretów w repozytorium.**
 - [ ] **Klucz GUS** (`GUS_API_KEY`): bez niego NIP-y są sprawdzane na bazie testowej z nieprawdziwymi danymi firm. **Blokuje prawdziwych klientów.**
 - [ ] **Link do polityki prywatności** w organizacji (`organizations.privacy_policy_url`, https); bez niego klauzula RODO przy CTA jest bez odnośnika.
 - [ ] **Treści do potwierdzenia z prawnikiem** (sekcja 8): klauzula domyślna, stopka maila, zaproszenie na landing page.
-- [ ] **Rotacja tokenu MailerSend:** wartość była widoczna w zapisie sesji roboczej; nowy token ustaw bez wyświetlania (`read -s`).
+- [x] **Rotacja tokenu MailerSend:** poprzednia wartość była widoczna w zapisie sesji roboczej; nowy token ustawiony w sekretach funkcji 2026-11-11 (22:12), prawdziwa wysyłka kalkulacji na nowym tokenie potwierdzona, stary token unieważniony w panelu MailerSend (potwierdzenie właściciela; z poziomu narzędzi nie da się tego zweryfikować).
 - [ ] **Potwierdzenie szczegółów maila z kalkulacją:** nadawca, `Reply-To`, link z domeny produkcyjnej, załącznik `.xlsx` z działającymi formułami.
 - [x] **n8n i cron:** workflow aktywny, `N8N_WEBHOOK_*` ustawione, `DISPATCH_SECRET` w funkcjach i Vault, dosyłanie przez cron sprawdzone (2026-11-11). Dla każdego kolejnego konsultanta zostaje identyfikator czatu w profilu.
 - [ ] **Stopka „Delivered by MailerSend”** w mailach (zaobserwowana w mailu logowania): sprawdź w MailerSend, czy plan ją wyłącza, zanim klienci dostaną maile z kalkulacją.
