@@ -429,3 +429,7 @@ enabled = true
 # funkcja sama waliduje wejście i używa service role wyłącznie po stronie serwera.
 [functions.guest-session]
 verify_jwt = false
+
+# Rozmówca podaje NIP; dane firmy z GUS przypinane do sesji po tokenie z linku (bez logowania).
+[functions.lookup-company]
+verify_jwt = false

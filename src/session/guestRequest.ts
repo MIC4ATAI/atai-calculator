@@ -11,6 +11,11 @@ export const MAX_BODY_BYTES = 16 * 1024;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
 
+/** Token sesji z linku rozmówcy: 8–128 znaków [A-Za-z0-9_-] (prawdziwe mają 48 znaków hex). */
+export function isValidToken(value: unknown): value is string {
+  return typeof value === 'string' && TOKEN_PATTERN.test(value);
+}
+
 export type GuestRequest =
   | { action: 'get'; token: string }
   | {
@@ -32,7 +37,7 @@ export function parseGuestRequest(body: unknown): ParseResult {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return fail('Ciało żądania musi być obiektem');
   const b = body as Record<string, unknown>;
 
-  if (typeof b.token !== 'string' || !TOKEN_PATTERN.test(b.token)) return fail('Niepoprawny token');
+  if (!isValidToken(b.token)) return fail('Niepoprawny token');
   const token = b.token;
 
   if (b.action === 'get') return { ok: true, request: { action: 'get', token } };

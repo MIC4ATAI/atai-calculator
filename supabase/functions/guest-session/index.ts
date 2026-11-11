@@ -11,32 +11,14 @@
 // POST { action: 'patch', token, patch?: {kh, kpir, ...}, mixKh?: number, reply?: string }
 // → 200 { view } | 400 { error: 'bad_request' } | 404 { error: 'not_found' } | 405 | 413 | 500
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
-import { MAX_BODY_BYTES, parseGuestRequest } from '../../../src/session/guestRequest.ts';
+import { parseGuestRequest } from '../../../src/session/guestRequest.ts';
 import { buildGuestView, type SessionRow } from '../../../src/session/guestView.ts';
-
-const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
-// Funkcja jest publiczna i chroniona tokenem, nie cookies — wystarczy otwarte CORS.
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400',
-};
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
+import { admin } from '../_shared/admin.ts';
+import { handleNonPost, json, readJsonBody } from '../_shared/http.ts';
 
 /** Widok sesji po tokenie; null, gdy sesji nie ma albo jest zarchiwizowana. */
 async function loadView(token: string) {
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('calc_sessions')
     .select('inputs, params, revealed, mix_kh, reply, status')
     .eq('token', token)
@@ -47,26 +29,19 @@ async function loadView(token: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-  if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' });
+  const early = handleNonPost(req);
+  if (early) return early;
 
   try {
-    const raw = await req.text();
-    if (new TextEncoder().encode(raw).length > MAX_BODY_BYTES) return json(413, { error: 'too_large' });
+    const body = await readJsonBody(req);
+    if (!body.ok) return body.response;
 
-    let body: unknown;
-    try {
-      body = JSON.parse(raw);
-    } catch {
-      return json(400, { error: 'bad_request' });
-    }
-
-    const parsed = parseGuestRequest(body);
+    const parsed = parseGuestRequest(body.value);
     if (!parsed.ok) return json(400, { error: 'bad_request' });
     const request = parsed.request;
 
     if (request.action === 'patch') {
-      const { data: updated, error } = await supabase.rpc('guest_patch_calc_session', {
+      const { data: updated, error } = await admin.rpc('guest_patch_calc_session', {
         p_token: request.token,
         p_patch: request.patch,
         p_mix_kh: request.mixKh ?? undefined,

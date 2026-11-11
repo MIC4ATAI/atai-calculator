@@ -37,7 +37,7 @@ language sql as $$
   end
 $$;
 
-select plan(89);
+select plan(93);
 
 -- Dane: s1 Ola/MITAX (odsłonięta, dane do snapshotu), s2 Marek/MITAX, s3 Jan/AT AI, s4 i s5 Ola/MITAX,
 -- s6 Ola/MITAX odsłonięta bez firmy, s7 Ola/MITAX nieodsłonięta, s8 Ola/MITAX (limit NIP), s9 zarchiwizowana.
@@ -68,13 +68,24 @@ select is(
 
 select tests.login_as_service();
 select is(
-  public.attach_company_to_session('tok-ola-sess01', tests.company_json('5261040567', 'INNA NAZWA')),
+  public.attach_company_to_session('tok-ola-sess01', tests.company_json('5261040567', 'T-MOBILE POLSKA SA (ODŚWIEŻONA)')),
   (select id from public.companies where org_id = '10000000-0000-4000-8000-000000000001' and nip = '5261040567'),
   'attach: ta sama firma jest idempotentna (ten sam identyfikator)');
 reset role;
 select is(
   (select name from public.companies where org_id = '10000000-0000-4000-8000-000000000001' and nip = '5261040567'),
-  'T-MOBILE POLSKA SA', 'attach: ponowne przypięcie niczego nie nadpisuje');
+  'T-MOBILE POLSKA SA (ODŚWIEŻONA)', 'attach: ponowne przypięcie ze świeżymi danymi z GUS odświeża firmę (np. po awarii GUS)');
+select tests.login_as_service();
+select lives_ok(
+  $$select public.attach_company_to_session('tok-ola-sess01', tests.company_json('5261040567', null, 'unavailable'))$$,
+  'attach: ponowne przypięcie bez danych (GUS niedostępny)');
+select lives_ok(
+  $$select public.attach_company_to_session('tok-ola-sess01', tests.company_json('5261040567', 'T-MOBILE POLSKA SA'))$$,
+  'attach: powrót do pierwotnej nazwy (przygotowanie danych)');
+reset role;
+select is(
+  (select name from public.companies where org_id = '10000000-0000-4000-8000-000000000001' and nip = '5261040567'),
+  'T-MOBILE POLSKA SA', 'attach: ładunek „niedostępny” niczego nie nadpisał, a świeże dane wróciły');
 select is(
   (select count(*)::int from public.calc_events where session_id = '20000000-0000-4000-8000-000000000001' and field = 'company_id'),
   1, 'attach: powtórka nie dopisuje zdarzenia');
@@ -275,6 +286,9 @@ select is(
   (select id from public.companies where org_id = '10000000-0000-4000-8000-000000000001' and nip = '5261040567'),
   'attach: ta sama firma po utworzeniu leada nadal przechodzi (idempotentnie)');
 reset role;
+select is(
+  (select name from public.companies where org_id = '10000000-0000-4000-8000-000000000001' and nip = '5261040567'),
+  'T-MOBILE POLSKA SA', 'attach: po utworzeniu leada świeże dane z GUS nie zmieniają zablokowanej firmy');
 
 -- Blokada danych firmy ---------------------------------------------------------
 select throws_ok(
