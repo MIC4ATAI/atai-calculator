@@ -52,3 +52,25 @@ insert into public.memberships (org_id, user_id, role) values
   ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', 'consultant');
 
 insert into public.platform_operators (user_id) values ('00000000-0000-4000-8000-000000000001');
+
+-- Marka organizacji (mail z kalkulacją). MITAX: pełna, AT AI: minimalna — oba warianty szablonu.
+update public.organizations set brand = jsonb_build_object(
+  'senderName', 'MITAX Consulting',
+  'senderEmail', 'kalkulator@mitax.test',
+  'primaryColor', '#1f6f5c',
+  'logoUrl', 'https://mitax.test/logo.png',
+  'landingUrl', 'https://landing.mitax.test/kalkulator'
+) where id = '10000000-0000-4000-8000-000000000001';
+
+update public.organizations set brand = jsonb_build_object(
+  'senderName', 'AT AI Solutions',
+  'senderEmail', 'kalkulator@atai.test'
+) where id = '10000000-0000-4000-8000-000000000002';
+
+-- Dane konsultantów do podpisu w mailu.
+update public.profiles set phone = '+48 600 100 200', signature = E'Marek Kustosz\nMITAX Consulting sp. z o.o.'
+  where user_id = '00000000-0000-4000-8000-000000000002';
+update public.profiles set phone = '+48 600 100 300', signature = E'Ola Konsultant\nMITAX Consulting sp. z o.o.'
+  where user_id = '00000000-0000-4000-8000-000000000003';
+update public.profiles set phone = '+48 600 200 100', signature = E'Jan Konsultant\nAT AI Solutions'
+  where user_id = '00000000-0000-4000-8000-000000000006';

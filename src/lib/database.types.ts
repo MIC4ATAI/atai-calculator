@@ -45,17 +45,23 @@ isOneToOne: false
                   ]
                 },"calc_sessions": {
                   Row: {
-                    "consultant_id": string,"created_at": string,"id": string,"inputs": NonNullable<Json>,"mix_kh": number | null,"org_id": string,"params": NonNullable<Json>,"reply": string,"revealed": boolean,"status": string,"token": string,"updated_at": string
+                    "company_id": string | null,"consultant_id": string,"created_at": string,"id": string,"inputs": NonNullable<Json>,"mix_kh": number | null,"org_id": string,"params": NonNullable<Json>,"reply": string,"revealed": boolean,"status": string,"token": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "consultant_id": string,"created_at"?: string,"id"?: string,"inputs"?: NonNullable<Json>,"mix_kh"?: number | null,"org_id": string,"params"?: NonNullable<Json>,"reply"?: string,"revealed"?: boolean,"status"?: string,"token"?: string,"updated_at"?: string
+                    "company_id"?: string | null,"consultant_id": string,"created_at"?: string,"id"?: string,"inputs"?: NonNullable<Json>,"mix_kh"?: number | null,"org_id": string,"params"?: NonNullable<Json>,"reply"?: string,"revealed"?: boolean,"status"?: string,"token"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "consultant_id"?: string,"created_at"?: string,"id"?: string,"inputs"?: NonNullable<Json>,"mix_kh"?: number | null,"org_id"?: string,"params"?: NonNullable<Json>,"reply"?: string,"revealed"?: boolean,"status"?: string,"token"?: string,"updated_at"?: string
+                    "company_id"?: string | null,"consultant_id"?: string,"created_at"?: string,"id"?: string,"inputs"?: NonNullable<Json>,"mix_kh"?: number | null,"org_id"?: string,"params"?: NonNullable<Json>,"reply"?: string,"revealed"?: boolean,"status"?: string,"token"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
+      foreignKeyName: "calc_sessions_company_fkey"
+      columns: ["company_id","org_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id","org_id"]
+    },{
       foreignKeyName: "calc_sessions_org_id_fkey"
       columns: ["org_id"]
 isOneToOne: false
@@ -81,6 +87,78 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "calc_sessions"
       referencedColumns: ["id","org_id"]
+    }
+                  ]
+                },"companies": {
+                  Row: {
+                    "building_no": string | null,"city": string | null,"created_at": string,"fetched_at": string,"gus_raw": Json | null,"gus_status": string,"gus_type": string | null,"id": string,"name": string | null,"nip": string,"org_id": string,"postal_code": string | null,"regon": string | null,"street": string | null,"unit_no": string | null,"voivodeship": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "building_no"?: string | null,"city"?: string | null,"created_at"?: string,"fetched_at"?: string,"gus_raw"?: Json | null,"gus_status"?: string,"gus_type"?: string | null,"id"?: string,"name"?: string | null,"nip": string,"org_id": string,"postal_code"?: string | null,"regon"?: string | null,"street"?: string | null,"unit_no"?: string | null,"voivodeship"?: string | null
+                  }
+                  Update: {
+                    "building_no"?: string | null,"city"?: string | null,"created_at"?: string,"fetched_at"?: string,"gus_raw"?: Json | null,"gus_status"?: string,"gus_type"?: string | null,"id"?: string,"name"?: string | null,"nip"?: string,"org_id"?: string,"postal_code"?: string | null,"regon"?: string | null,"street"?: string | null,"unit_no"?: string | null,"voivodeship"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "companies_org_id_fkey"
+      columns: ["org_id"]
+isOneToOne: false
+      referencedRelation: "organizations"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"lead_deliveries": {
+                  Row: {
+                    "created_at": string,"error": string | null,"id": number,"lead_id": string,"org_id": string,"provider": string,"provider_message_id": string | null,"status": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"error"?: string | null,"id"?: never,"lead_id": string,"org_id": string,"provider": string,"provider_message_id"?: string | null,"status": string
+                  }
+                  Update: {
+                    "created_at"?: string,"error"?: string | null,"id"?: never,"lead_id"?: string,"org_id"?: string,"provider"?: string,"provider_message_id"?: string | null,"status"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "lead_deliveries_lead_id_org_id_fkey"
+      columns: ["lead_id","org_id"]
+isOneToOne: false
+      referencedRelation: "leads"
+      referencedColumns: ["id","org_id"]
+    }
+                  ]
+                },"leads": {
+                  Row: {
+                    "company_id": string,"consultant_id": string,"created_at": string,"email": string,"id": string,"org_id": string,"session_id": string,"snapshot_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "company_id": string,"consultant_id": string,"created_at"?: string,"email": string,"id"?: string,"org_id": string,"session_id": string,"snapshot_id": string
+                  }
+                  Update: {
+                    "company_id"?: string,"consultant_id"?: string,"created_at"?: string,"email"?: string,"id"?: string,"org_id"?: string,"session_id"?: string,"snapshot_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "leads_company_id_org_id_fkey"
+      columns: ["company_id","org_id"]
+isOneToOne: false
+      referencedRelation: "companies"
+      referencedColumns: ["id","org_id"]
+    },{
+      foreignKeyName: "leads_session_id_org_id_fkey"
+      columns: ["session_id","org_id"]
+isOneToOne: false
+      referencedRelation: "calc_sessions"
+      referencedColumns: ["id","org_id"]
+    },{
+      foreignKeyName: "leads_snapshot_id_session_id_fkey"
+      columns: ["snapshot_id","session_id"]
+isOneToOne: false
+      referencedRelation: "calc_snapshots"
+      referencedColumns: ["id","session_id"]
     }
                   ]
                 },"memberships": {
@@ -177,9 +255,13 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_calc_session":
+            "attach_company_to_session":
+{ Args: { "p_company": Json,"p_token": string }; Returns: string
+                           },
+"create_calc_session":
 { Args: { "p_org_id": string }; Returns: {
-              "consultant_id": string,
+              "company_id": string | null,
+"consultant_id": string,
 "created_at": string,
 "id": string,
 "inputs": NonNullable<Json>,
@@ -203,6 +285,9 @@ isOneToOne: false
                            },
 "patch_calc_session_inputs":
 { Args: { "p_patch": Json,"p_session_id": string }; Returns: undefined
+                           },
+"prepare_calculation_delivery":
+{ Args: { "p_calc": Json,"p_email": string,"p_expected_updated_at": string,"p_token": string }; Returns: Json
                            }
           }
           Enums: {

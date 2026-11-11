@@ -17,7 +17,7 @@ begin
   set local role service_role;
 end $$;
 
-select plan(29);
+select plan(31);
 
 -- Dane: s1 (Ola/MITAX), s3 (Jan/AT AI); po jednym snapshocie i zdarzeniu dziennika w s1.
 insert into public.calc_sessions (id, org_id, consultant_id) values
@@ -28,27 +28,33 @@ insert into public.calc_snapshots (id, org_id, session_id, inputs, params, resul
 values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
         '20000000-0000-4000-8000-000000000001', '{"kh":100}', '{}', '{}', '{}', '1.0.0');
 
--- calc_snapshots: INSERT tak, ale tylko do własnej sesji -------------------
+-- calc_snapshots: klient nie tworzy (zamrożenie robi serwer przez RPC), jeden snapshot na sesję ---
 select tests.login_as('00000000-0000-4000-8000-000000000003'); -- Ola
-select lives_ok(
+select throws_ok(
   $$insert into public.calc_snapshots (org_id, session_id, inputs, params, result, mix, calc_version)
     values ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '{}', '{}', '{}', '{}', '1.0.0')$$,
-  'konsultant tworzy snapshot własnej sesji');
+  '42501', null, 'konsultant nie tworzy snapshotu nawet własnej sesji (brak grantu INSERT; zamrożenie robi serwer)');
 select throws_ok(
   $$insert into public.calc_snapshots (org_id, session_id, inputs, params, result, mix, calc_version)
     values ('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000003', '{}', '{}', '{}', '{}', '1.0.0')$$,
-  '42501', null, 'konsultant nie tworzy snapshotu cudzej sesji z innej organizacji (RLS)');
+  '42501', null, 'konsultant nie tworzy snapshotu sesji z innej organizacji');
+reset role;
 select throws_ok(
   $$insert into public.calc_snapshots (org_id, session_id, inputs, params, result, mix, calc_version)
-    values ('10000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', '{}', '{}', '{}', '{}', '1.0.0')$$,
+    values ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', '{}', '{}', '{}', '{}', '1.0.0')$$,
+  '23505', null, 'druga zamrożona kopia tej samej sesji jest odrzucona (jeden snapshot na sesję)');
+select throws_ok(
+  $$insert into public.calc_snapshots (org_id, session_id, inputs, params, result, mix, calc_version)
+    values ('10000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000003', '{}', '{}', '{}', '{}', '1.0.0')$$,
   '23503', null, 'snapshot z org_id niezgodnym z organizacją sesji jest odrzucony (klucz złożony)');
 
 -- calc_snapshots: widoczność ------------------------------------------------
-select is((select count(*)::int from public.calc_snapshots), 2, 'konsultant widzi snapshoty własnej sesji');
+select tests.login_as('00000000-0000-4000-8000-000000000003'); -- Ola
+select is((select count(*)::int from public.calc_snapshots), 1, 'konsultant widzi snapshot własnej sesji');
 reset role; select tests.login_as('00000000-0000-4000-8000-000000000006'); -- Jan (inna organizacja)
 select is((select count(*)::int from public.calc_snapshots), 0, 'konsultant innej organizacji nie widzi snapshotów');
 reset role; select tests.login_as('00000000-0000-4000-8000-000000000004'); -- admin MITAX
-select is((select count(*)::int from public.calc_snapshots), 2, 'admin organizacji widzi snapshoty jej sesji');
+select is((select count(*)::int from public.calc_snapshots), 1, 'admin organizacji widzi snapshoty jej sesji');
 
 -- calc_snapshots: klient nie zmienia ani nie usuwa ---------------------------
 reset role; select tests.login_as('00000000-0000-4000-8000-000000000003'); -- Ola
@@ -85,10 +91,16 @@ select throws_ok(
   $$delete from public.calc_snapshots$$,
   '42501', 'Tabela calc_snapshots jest tylko do dopisywania (DELETE zablokowane)',
   'postgres nie usuwa snapshotu (trigger)');
+-- Od etapu 2 do snapshotów odwołują się leady, więc zwykły TRUNCATE zatrzymuje klucz obcy (0A000);
+-- TRUNCATE ... CASCADE omija to ograniczenie i musi trafić w nasz trigger.
 select throws_ok(
   $$truncate public.calc_snapshots$$,
+  '0A000', null,
+  'postgres nie czyści tabeli snapshotów (TRUNCATE zatrzymuje klucz obcy z leads)');
+select throws_ok(
+  $$truncate public.calc_snapshots cascade$$,
   '42501', 'Tabela calc_snapshots jest tylko do dopisywania (TRUNCATE zablokowane)',
-  'postgres nie czyści tabeli snapshotów (TRUNCATE)');
+  'postgres nie czyści snapshotów nawet przez TRUNCATE ... CASCADE (trigger)');
 select throws_ok(
   $$delete from public.calc_sessions where id = '20000000-0000-4000-8000-000000000001'$$,
   '23503', null, 'sesji ze snapshotem nie da się usunąć (klucz obcy RESTRICT)');
