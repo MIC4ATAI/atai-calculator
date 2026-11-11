@@ -39,7 +39,11 @@ export const MITAX_POLICY: PolicyConfig = {
   },
   retention: null,
   erasureHandling: null,
-  transfers: null,
+  // Propozycja do zatwierdzenia przez prawnika. Nie twierdzi niczego niepotwierdzonego: region bazy (Frankfurt) ustawiono w projekcie,
+  // a mechanizm przekazania to standardowe klauzule umowne z umów powierzenia dostawców. Podmiot umowy i regiony MailerSend
+  // oraz podwykonawców Vercela należy zweryfikować (docs/deploy.md), zanim treść zostanie uznana za ostateczną.
+  transfers:
+    'Dane przechowujemy w regionie UE (Frankfurt, Niemcy). Niektórzy dostawcy usług, w szczególności dostawca bazy danych i funkcji serwerowych, dostawca hostingu aplikacji oraz dostawca usługi wysyłki wiadomości e-mail, mogą przetwarzać dane poza Europejskim Obszarem Gospodarczym, w tym w Stanach Zjednoczonych. Przekazanie odbywa się na podstawie standardowych klauzul umownych zatwierdzonych przez Komisję Europejską, zawartych w umowach powierzenia z tymi dostawcami. Kopię zabezpieczeń można uzyskać, kontaktując się z nami pod adresem rodo@mitax.pl.',
   updatedAt: '2026-11-11',
   legalReviewedAt: null,
 };
