@@ -181,6 +181,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"notification_outbox": {
+                  Row: {
+                    "attempts": number,"claimed_until": string | null,"consultant_id": string,"created_at": string,"id": number,"kind": string,"new_visit": boolean,"org_id": string,"sent_at": string | null,"session_id": string,"status": string,"visit_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"claimed_until"?: string | null,"consultant_id": string,"created_at"?: string,"id"?: never,"kind": string,"new_visit"?: boolean,"org_id": string,"sent_at"?: string | null,"session_id": string,"status"?: string,"visit_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"claimed_until"?: string | null,"consultant_id"?: string,"created_at"?: string,"id"?: never,"kind"?: string,"new_visit"?: boolean,"org_id"?: string,"sent_at"?: string | null,"session_id"?: string,"status"?: string,"visit_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_outbox_session_id_org_id_fkey"
+      columns: ["session_id","org_id"]
+isOneToOne: false
+      referencedRelation: "calc_sessions"
+      referencedColumns: ["id","org_id"]
+    },{
+      foreignKeyName: "notification_outbox_visit_id_fkey"
+      columns: ["visit_id"]
+isOneToOne: false
+      referencedRelation: "session_visits"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"organizations": {
                   Row: {
                     "brand": NonNullable<Json>,"created_at": string,"default_params": NonNullable<Json>,"id": string,"name": string,"nip": string | null,"privacy_policy_url": string | null
@@ -211,17 +237,37 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"full_name": string | null,"phone": string | null,"photo_url": string | null,"signature": string | null,"user_id": string
+                    "created_at": string,"full_name": string | null,"notify_channel": string | null,"notify_target": string | null,"phone": string | null,"photo_url": string | null,"signature": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"full_name"?: string | null,"phone"?: string | null,"photo_url"?: string | null,"signature"?: string | null,"user_id": string
+                    "created_at"?: string,"full_name"?: string | null,"notify_channel"?: string | null,"notify_target"?: string | null,"phone"?: string | null,"photo_url"?: string | null,"signature"?: string | null,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"full_name"?: string | null,"phone"?: string | null,"photo_url"?: string | null,"signature"?: string | null,"user_id"?: string
+                    "created_at"?: string,"full_name"?: string | null,"notify_channel"?: string | null,"notify_target"?: string | null,"phone"?: string | null,"photo_url"?: string | null,"signature"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     
+                  ]
+                },"session_visits": {
+                  Row: {
+                    "changed": boolean,"id": string,"last_activity_at": string,"org_id": string,"session_id": string,"started_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "changed"?: boolean,"id"?: string,"last_activity_at"?: string,"org_id": string,"session_id": string,"started_at"?: string
+                  }
+                  Update: {
+                    "changed"?: boolean,"id"?: string,"last_activity_at"?: string,"org_id"?: string,"session_id"?: string,"started_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "session_visits_session_id_org_id_fkey"
+      columns: ["session_id","org_id"]
+isOneToOne: false
+      referencedRelation: "calc_sessions"
+      referencedColumns: ["id","org_id"]
+    }
                   ]
                 },"usage_events": {
                   Row: {
@@ -258,6 +304,9 @@ isOneToOne: false
             "attach_company_to_session":
 { Args: { "p_company": Json,"p_token": string }; Returns: string
                            },
+"claim_notifications":
+{ Args: { "p_limit"?: number,"p_session_id"?: string }; Returns: Json
+                           },
 "create_calc_session":
 { Args: { "p_org_id": string }; Returns: {
               "company_id": string | null,
@@ -280,6 +329,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"finish_notification":
+{ Args: { "p_id": number,"p_outcome": string }; Returns: undefined
+                           },
 "guest_patch_calc_session":
 { Args: { "p_mix_kh"?: number,"p_patch": Json,"p_reply"?: string,"p_token": string }; Returns: boolean
                            },
@@ -288,6 +340,12 @@ isOneToOne: false
                            },
 "prepare_calculation_delivery":
 { Args: { "p_calc": Json,"p_email": string,"p_expected_updated_at": string,"p_token": string }; Returns: Json
+                           },
+"record_guest_visit":
+{ Args: { "p_token": string }; Returns: boolean
+                           },
+"restore_session_to_snapshot":
+{ Args: { "p_token": string }; Returns: boolean
                            }
           }
           Enums: {

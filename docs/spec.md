@@ -314,3 +314,17 @@ Rzeczy znane z etapu 1, które trzeba zamknąć przed produkcją:
   osobną, udokumentowaną procedurę (migracja z jawnym wyłączeniem triggera dla konkretnych rekordów).
 - **Marka organizacji** (logo, kolory, nadawca maili, osoba konsultanta) w widoku rozmówcy —
   zgodnie z sekcją „SaaS”; etap 1 pokazuje neutralny widok.
+
+### Stan etapu 3 (w toku)
+
+Spik techniczny (2026-11-11, kod jednorazowy usunięty): z kontenera Edge Runtime działa `fetch` do hosta
+(`host.docker.internal`), `EdgeRuntime.waitUntil` dokańcza zadanie po wysłaniu odpowiedzi (odpowiedź po 0,1 s,
+żądanie w tle po 2 s) i `crypto.subtle` liczy HMAC-SHA256 identyczny z Node.
+
+Model danych (migracja 6): `session_visits` (wizyta klienta po zamrożeniu stanu; nowa po 30 min ciszy; tabela
+operacyjna, dowodem zmian pozostaje niezmienny `calc_events`), `notification_outbox` (alerty do wysłania; zero
+dostępu dla klientów, tylko serwer przez RPC `claim_notifications` / `finish_notification`, do 5 prób),
+`profiles.notify_channel` i `notify_target` (Telegram chat id, oba pola albo żadne). Rejestrację aktywności robi baza:
+RPC `record_guest_visit` (otwarcie strony) i trigger zmian danych bez JWT (aktor `guest`, jak w dzienniku zmian).
+`restore_session_to_snapshot` przywraca dane i miks ze snapshotu; zmiany zapisuje dziennik jako zmiany rozmówcy.
+Test pgTAP `07_followup.sql` (73 asercje) obejmuje RLS, okno 30 min, jeden alert na wizytę, restore, outbox i profil.
