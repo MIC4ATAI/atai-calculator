@@ -159,6 +159,10 @@ function PresenterSession({ id }: { id: string }) {
               <Metric label="Udział w czasie pracy" value={`${nf(result.udzialCzasu * 100, 1)} %`} />
               <Metric label="Śr. cena KH / mies." value={result.cenaKh !== null ? zl(result.cenaKh) : '–'} />
               <Metric label="Śr. cena KPiR / mies." value={result.cenaKpir !== null ? zl(result.cenaKpir) : '–'} />
+              <Metric
+                label="Przychód / efektywna h"
+                value={result.przychodNaGodzine !== null ? `${nf(result.przychodNaGodzine, 2)} zł` : '–'}
+              />
             </div>
           ) : (
             <p className="sub">

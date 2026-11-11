@@ -33,6 +33,11 @@ Prototyp przebiegu: https://claude.ai/artifact/3vuquvjRr9PT5MVD5W5dbD
 - Przykład kontrolny: 100 KH, 200 KPiR, 9 osób, 2 mln zł przychodu, 1,2 mln zł wynagrodzeń →
   121 h/mies., 36 min/mies. na kliencie KH (1 min 44 s dziennie), +20 KH albo +40 KPiR,
   20 KH ≈ 22 222 zł przychodu/mies.
+- Przychód na efektywną godzinę (zł/h) = roczny przychód / 12 / efektywne roboczogodziny
+  w miesiącu (arkusz: `=C4/C14`); w przykładzie kontrolnym 137,79 zł/h. Bez przychodu: brak wartości.
+  Pokazywany w widoku prezentera; rozmówca go nie widzi.
+- Wersja logiki `CALC_VERSION`: **1.1.0** (dodano przychód na efektywną godzinę; wcześniejsze wzory
+  bez zmian). Każda zmiana wzorów podbija wersję, bo zamrożone stany zapisują wersję, którą policzono wynik.
 
 ## SaaS: organizacje, konsultanci, operator
 
@@ -190,9 +195,6 @@ Realtime, odsłanianie wyniku, suwak miksu po obu stronach); zliczanie użycia.
 
 Odstępstwa od prototypu i pierwotnego planu:
 
-- **Metryka „Przychód / efektywna h”** z widoku prezentera nie jest przeniesiona: jej wzoru nie ma
-  w `src/calc` ani w testach zgodności z arkuszem. Jeśli ma być, dodajemy ją do `src/calc` z podbiciem
-  `CALC_VERSION` i wartością z arkusza.
 - **„Dodatkowi klienci KH”** w widoku prezentera to liczba całkowita (`maksNowychKh`, etykieta
   „Maks. nowi klienci KH”), a nie wartość ułamkowa.
 - **Komunikat dla rozmówcy** „Uzupełnij dane powyżej, a wynik pojawi się tutaj.” — gdy wynik jest
