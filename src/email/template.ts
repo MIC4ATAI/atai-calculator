@@ -13,7 +13,8 @@ import type { OrgBrand } from './brand.ts';
 
 /**
  * BRZMIENIE DO POTWIERDZENIA Z PRAWNIKIEM (spec: „Zaproszenie w mailu to krótki dopisek, nie treść reklamowa”).
- * Wstawiane tylko wtedy, gdy organizacja ma `landingUrl`. Nie dołączamy do linku identyfikatora sesji —
+ * Wstawiane tylko wtedy, gdy włączono je flagą (`MAIL_LANDING_INVITATION`, patrz landingFlag.ts; domyślnie wyłączone do
+ * czasu powstania landing page'y) ORAZ organizacja ma `landingUrl`. Nie dołączamy do linku identyfikatora sesji —
  * sposób powiązania zgód z firmą i kalkulacją ustali etap 4 (landing page).
  */
 export const LANDING_INVITATION_TEXT =
@@ -34,6 +35,8 @@ export interface EmailInput {
   summary: { godzinyDoOdzyskania: number; maksNowychKh: number };
   /** Link do sesji rozmówcy (https; lokalnie dopuszczamy http). */
   sessionUrl: string;
+  /** Zaproszenie na landing page organizacji (flaga MAIL_LANDING_INVITATION); brak = wyłączone. */
+  landingInvitation?: boolean;
 }
 
 export interface RenderedEmail {
@@ -134,7 +137,7 @@ export function renderCalculationEmail(input: EmailInput): RenderedEmail {
   const result = resultLine(input.summary);
   const company = companyPhrase(input.company);
   const signature = signatureLines(input);
-  const landing = input.brand.landingUrl ?? null;
+  const landing = input.landingInvitation ? (input.brand.landingUrl ?? null) : null;
 
   const intro = `W załączniku przesyłamy kalkulację z naszej rozmowy dla firmy ${company}. W pliku Excel znajdziesz wynik z rozmowy oraz zakładkę „Twoja symulacja”, w której możesz samodzielnie zmieniać dane.`;
   const sessionLead = 'Możesz też wrócić do swojej sesji i sprawdzić inne scenariusze:';

@@ -437,3 +437,8 @@ verify_jwt = false
 # Rozmówca prosi o kalkulację (CTA): zamrożenie stanu, Excel i mail w marce organizacji, po tokenie z linku.
 [functions.request-calculation]
 verify_jwt = false
+
+# Dostarczanie zaległych powiadomień: wywołuje ją baza (pg_cron + pg_net) z sekretem w nagłówku X-Dispatch-Secret,
+# a nie przeglądarka, więc bramka nie sprawdza JWT. Funkcja sama odrzuca żądania bez poprawnego sekretu.
+[functions.dispatch-notifications]
+verify_jwt = false

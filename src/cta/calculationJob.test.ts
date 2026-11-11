@@ -185,6 +185,15 @@ describe('Excel i mail powstają ZE SNAPSHOTU, nie z żywej sesji', () => {
     expect((wb.worksheets[0]!.getCell('A6').fill as ExcelJS.FillPattern).fgColor?.argb).toBe('FF336699');
   });
 
+  it('zaproszenie na landing page w mailu: domyślnie wyłączone, pojawia się dopiero po włączeniu flagi', async () => {
+    const off = await buildDeliveryMessage(ctx());
+    expect(off.text).not.toContain('landing.mitax.test');
+    expect(off.html).not.toContain('landing.mitax.test');
+    const on = await buildDeliveryMessage(ctx({ landingInvitation: true }));
+    expect(on.text).toContain('https://landing.mitax.test/kalkulator');
+    expect(on.html).toContain('landing.mitax.test');
+  });
+
   it('bez adresu konsultanta nie ma Reply-To; adres odbiorcy jest normalizowany', async () => {
     const msg = await buildDeliveryMessage(ctx({ consultant: { ...consultant, email: null }, recipient: ' Rozmowca@Firma.PL ' }));
     expect('replyTo' in msg).toBe(false);

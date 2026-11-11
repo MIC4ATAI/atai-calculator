@@ -25,6 +25,7 @@ import {
   type FollowUpView,
   type SnapshotRowLike,
 } from '../followup/conversation.ts';
+import { buildCtaNotice, type CtaNoticeSource, type CtaNoticeView } from '../cta/notice.ts';
 import { buildCtaView, type CtaState, type CtaView, type DeliverySummary } from '../cta/ctaPolicy.ts';
 
 import {
@@ -172,6 +173,8 @@ export interface SessionRow {
   delivery?: DeliverySummary | null;
   /** Zamrożony stan z rozmowy (snapshot); brak = rozmówca jeszcze nie poprosił o kalkulację. */
   snapshot?: SnapshotRowLike | null;
+  /** Organizacja sesji: nazwa, link do polityki prywatności i treść klauzuli przy CTA. */
+  organization?: CtaNoticeSource | null;
 }
 
 const NO_DELIVERY: DeliverySummary = { hasLead: false, sentCount: 0, lockedEmail: null, lastSentAt: null };
@@ -209,6 +212,8 @@ export interface GuestView {
   cta: CtaView;
   /** Stan z rozmowy i różnica względem bieżącej symulacji; null = brak zamrożonego stanu (albo wynik ukryty). */
   followUp: FollowUpView | null;
+  /** Klauzula informacyjna RODO przy CTA (z organizacji); null = brak danych organizacji. */
+  notice: CtaNoticeView | null;
 }
 
 /**
@@ -249,6 +254,7 @@ export function buildGuestView(row: SessionRow): GuestView {
       }),
     ),
     followUp: buildFollowUp(row, inputs),
+    notice: row.organization ? buildCtaNotice(row.organization) : null,
   };
 }
 

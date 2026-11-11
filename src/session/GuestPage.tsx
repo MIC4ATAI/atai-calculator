@@ -176,7 +176,7 @@ function GuestSession({ token }: { token: string }) {
           )}
 
           {view.revealed && view.result && (
-            <SendCalculationCard token={token} cta={view.cta} onChanged={() => void refresh()} />
+            <SendCalculationCard token={token} cta={view.cta} privacy={view.notice} onChanged={() => void refresh()} />
           )}
           </>
           )}

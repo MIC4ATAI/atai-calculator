@@ -1,5 +1,5 @@
 {
   "imports": {
-    "exceljs": "npm:exceljs@4.4.0"
+    "exceljs": "../_vendor/exceljs.js"
   }
 }

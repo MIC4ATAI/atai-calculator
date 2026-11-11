@@ -301,10 +301,9 @@ Testy end-to-end (`npm run test:e2e`, poza `npm test`; krok 2.7):
 
 Rzeczy znane z etapu 1, które trzeba zamknąć przed produkcją:
 
-- **Wdrożenie Edge Function `guest-session`:** lokalnie `supabase functions serve` importuje
-  `src/calc` spoza katalogu funkcji bez problemu, ale `supabase functions deploy` bundluje inaczej —
-  sprawdzić przy pierwszym wdrożeniu. Awaryjnie: skrypt kopiujący `src/calc` do
-  `supabase/functions/_shared/` przed wdrożeniem (bez ręcznie utrzymywanych kopii).
+- **Wdrożenie Edge Functions:** sprawdzone lokalnie poleceniem `edge-runtime bundle` (jak CLI przy wdrożeniu); wymaga własnego
+  `deno.json` w każdej funkcji i paczki ExcelJS budowanej do `supabase/functions/_vendor/` (`npm run functions:prepare`).
+  Prawdziwe `functions deploy` nadal niezweryfikowane (wymaga projektu w chmurze) — patrz `docs/deploy.md`.
 - **Limit zapytań** do `guest-session` (na IP / token) na poziomie bramy; dziś chroni ją tylko
   192-bitowy token i limit rozmiaru ciała (16 KB).
 - **Auth produkcyjny:** adresy przekierowań i limit wysyłki maili ustawić w panelu Supabase (lokalny
@@ -379,4 +378,24 @@ Do zamknięcia przed produkcją (etap 3): funkcja `dispatch-notifications` wywo�
 nie zależą wtedy od ruchu klienta), przycisk „wyślij alert testowy” na stronie „Powiadomienia”, uruchomienie szablonu w żywej
 instancji n8n, ujęcie w umowie powierzenia danych konsultanta przechodzących przez n8n, ewentualny limit zapytań do
 `guest-session` na IP.
+
+### Runda „przed produkcją” (2026-11-11)
+
+- **Pakowanie funkcji do wdrożenia:** `lookup-company` w ogóle się nie budowała (Deno widział `package.json` w katalogu głównym i nie
+  rozwiązywał `npm:bir1`), a `guest-session` ważyła 147 MB (zależności frontendu). Rozwiązanie: własny `deno.json` w każdej
+  funkcji. `request-calculation` ważyła 43 MB z powodu drzewa pakietów `exceljs`; teraz importuje jeden wygenerowany plik
+  (`npm run functions:prepare`, w `.gitignore`): 9,9 MB. Limity platformy: 20 MB (pakowanie CLI) i 5 MB (po stronie serwera, nie używać).
+- **Cron powiadomień:** funkcja `dispatch-notifications` (sekret w nagłówku `X-Dispatch-Secret`, `DISPATCH_SECRET` min. 32 znaki,
+  porównanie w stałym czasie) i zadanie `pg_cron` co minutę (`private.dispatch_notifications_tick`), które woła ją przez `pg_net`
+  tylko gdy w outboxie coś czeka; adres i sekret czyta z Vault (poza migracją, per środowisko). Sprawdzone lokalnie: alert po awarii
+  odbiornika dochodzi bez ruchu klienta. Test pgTAP `08_dispatch_cron.sql`, scenariusze e2e.
+- **Zaproszenie na landing page w mailu:** wyłączone domyślnie flagą `MAIL_LANDING_INVITATION` (włączenie wymaga jawnej wartości i
+  `brand.landingUrl`); do czasu etapu 4 mail nie kieruje klienta na nieistniejącą stronę.
+- **Klauzula informacyjna RODO przy CTA:** treść (`organizations.cta_notice`, domyślna z `src/cta/notice.ts`) i link do polityki
+  prywatności (`organizations.privacy_policy_url`, tylko https) pochodzą z organizacji; to informacja, nie zgoda. Treść
+  domyślna do potwierdzenia z prawnikiem.
+- **Kontrola po wdrożeniu:** `npm run smoke` (publiczne funkcje, brak anonimowego dostępu do tabel, trasy SPA).
+- Odkryte przy okazji: rola serwisowa nie może aktualizować `organizations` (trigger `organizations_guard_update` woła
+  `private.is_operator()`, do którego nie ma uprawnień). Nie wpływa na produkt (organizacje zmienia właściciel lub operator),
+  ale testy e2e nie mogą podmieniać danych organizacji rolą serwisową.
 

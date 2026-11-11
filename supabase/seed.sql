@@ -74,3 +74,12 @@ update public.profiles set phone = '+48 600 100 300', signature = E'Ola Konsulta
   where user_id = '00000000-0000-4000-8000-000000000003';
 update public.profiles set phone = '+48 600 200 100', signature = E'Jan Konsultant\nAT AI Solutions'
   where user_id = '00000000-0000-4000-8000-000000000006';
+
+-- Klauzula informacyjna przy CTA: MITAX używa domyślnej treści (tylko link do polityki), AT AI ma własną treść.
+update public.organizations set privacy_policy_url = 'https://mitax.test/polityka-prywatnosci'
+  where id = '10000000-0000-4000-8000-000000000001';
+update public.organizations set
+  privacy_policy_url = 'https://atai.test/privacy',
+  cta_notice = E'Administratorem Twoich danych jest {organization}.\n\nAdres e-mail wykorzystamy tylko do wysłania kalkulacji, o którą prosisz.'
+  where id = '10000000-0000-4000-8000-000000000002';
+

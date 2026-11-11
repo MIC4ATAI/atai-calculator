@@ -3,7 +3,7 @@
  * Rozmówca nie ma dostępu do tabel: widzi tylko bezpieczny widok sesji.
  */
 import { describe, expect, it } from 'vitest';
-import { admin, API_URL, callFn, fillExample, newSession, reveal } from './helpers';
+import { admin, API_URL, callFn, fillExample, newSession, reveal, unique } from './helpers';
 
 describe('guest-session', () => {
   it('przed odsłonięciem: brak wyniku i brak cichych założeń; CTA zablokowane powodem „nie odsłonięto”', async () => {
@@ -66,3 +66,34 @@ describe('guest-session', () => {
     expect(get.status).toBe(405);
   });
 });
+
+describe('klauzula informacyjna RODO przy CTA (treść i link z organizacji)', () => {
+  const ATAI = '10000000-0000-4000-8000-000000000002';
+  const JAN = '00000000-0000-4000-8000-000000000006';
+
+  it('MITAX bez własnej treści: domyślna klauzula z nazwą administratora i linkiem do polityki prywatności', async () => {
+    const session = await newSession('notice-default');
+    const { notice } = (await callFn('guest-session', { action: 'get', token: session.token })).body.view;
+    expect(notice.organization).toBe('MITAX Consulting sp. z o.o.');
+    expect(notice.privacyUrl).toBe('https://mitax.test/polityka-prywatnosci');
+    const text = notice.paragraphs.join('\n');
+    expect(text).toContain('Administratorem Twoich danych osobowych jest MITAX Consulting sp. z o.o.');
+    expect(text).toContain('Nie zbieramy tu żadnych zgód marketingowych');
+    expect(Object.keys(notice).sort()).toEqual(['organization', 'paragraphs', 'privacyUrl']);
+  });
+
+  it('AT AI ma własną treść z podmienioną nazwą organizacji i własny link — klauzule organizacji się nie mieszają', async () => {
+    const token = `e2e-notice-atai-${unique()}${unique()}`;
+    const { error } = await admin.from('calc_sessions').insert({ org_id: ATAI, consultant_id: JAN, token });
+    expect(error).toBeNull();
+    const { notice } = (await callFn('guest-session', { action: 'get', token })).body.view;
+    expect(notice.organization).toBe('AT AI Solutions');
+    expect(notice.privacyUrl).toBe('https://atai.test/privacy');
+    expect(notice.paragraphs).toEqual([
+      'Administratorem Twoich danych jest AT AI Solutions.',
+      'Adres e-mail wykorzystamy tylko do wysłania kalkulacji, o którą prosisz.',
+    ]);
+    expect(JSON.stringify(notice)).not.toContain('MITAX');
+  });
+});
+

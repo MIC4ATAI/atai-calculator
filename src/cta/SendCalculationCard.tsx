@@ -2,11 +2,15 @@ import { useId, useState, type FormEvent } from 'react';
 import { parseEmail } from '../email/address';
 import { callRequestCalculation } from '../session/guestApi';
 import type { CtaView } from './ctaPolicy';
+import { CtaNotice } from './CtaNotice';
+import type { CtaNoticeView } from './notice';
 import { REQUEST_ERROR_MESSAGES } from './requestErrors';
 
 interface Props {
   token: string;
   cta: CtaView;
+  /** Klauzula informacyjna RODO organizacji (treść i link do polityki prywatności); null = brak danych organizacji. */
+  privacy: CtaNoticeView | null;
   /** Stan po wysyłce zmienił się — odśwież widok sesji. */
   onChanged: () => void;
 }
@@ -16,7 +20,7 @@ interface Props {
  * wysyłamy wyłącznie to, o co poprosił (spec: „E-mail i zgody”). Po pierwszej udanej wysyłce adres jest zablokowany,
  * a „Wyślij ponownie” używa tego samego adresu (widzimy go tylko w postaci zamaskowanej).
  */
-export function SendCalculationCard({ token, cta, onChanged }: Props) {
+export function SendCalculationCard({ token, cta, privacy, onChanged }: Props) {
   const inputId = useId();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -83,6 +87,7 @@ export function SendCalculationCard({ token, cta, onChanged }: Props) {
               Wyślemy wyłącznie plik Excel z tą kalkulacją i link do tej sesji — nic więcej.
             </div>
           </div>
+          {privacy && <CtaNotice notice={privacy} id={`${inputId}-privacy`} />}
           <button type="submit" className="primary" disabled={busy}>
             {busy ? 'Wysyłam…' : 'Wyślij kalkulację'}
           </button>

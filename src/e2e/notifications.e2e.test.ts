@@ -8,11 +8,12 @@
  * filtruje żądania po identyfikatorze własnej sesji.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { admin, callFn, deleteMailsTo, fillExample, MAREK, newSession, OLA, reveal, sleep, unique, type TestSession } from './helpers';
+import { admin, callFn, callFnRaw, deleteMailsTo, fillExample, MAREK, newSession, OLA, reveal, sleep, unique, type TestSession } from './helpers';
 import { startWebhookReceiver, type ReceivedWebhook, type WebhookReceiver } from './webhook';
 
 const PORT = Number(process.env.E2E_WEBHOOK_PORT ?? 0);
 const SECRET = process.env.E2E_WEBHOOK_SECRET ?? '';
+const DISPATCH_SECRET = process.env.E2E_DISPATCH_SECRET ?? '';
 const TARGET = '123456789';
 const emails: string[] = [];
 
@@ -219,5 +220,57 @@ describe.skipIf(!PORT || !SECRET)('powiadomienia dla konsultanta', () => {
     await sleep(1_200);
     expect(receiver.forSession(session.id)).toEqual([]);
     expect(await outbox(session.id)).toEqual([]);
+  });
+});
+
+describe.skipIf(!PORT || !SECRET || !DISPATCH_SECRET)('dispatch-notifications (zadanie crona)', () => {
+  beforeAll(async () => {
+    receiver = await startWebhookReceiver(PORT, SECRET);
+    await admin.from('profiles').update({ notify_channel: 'telegram', notify_target: TARGET }).eq('user_id', OLA);
+  });
+
+  afterAll(async () => {
+    await admin.from('profiles').update({ notify_channel: null, notify_target: null }).eq('user_id', OLA);
+    await receiver?.close();
+    await deleteMailsTo(emails);
+  });
+
+  it('odrzuca wywołania bez sekretu, ze złym sekretem, z samym kluczem publicznym i inną metodą', async () => {
+    expect((await callFnRaw('dispatch-notifications', {})).status).toBe(401);
+    expect((await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': 'zly-sekret' })).status).toBe(401);
+    expect((await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': DISPATCH_SECRET.slice(0, -1) })).status).toBe(401);
+    expect((await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': `${DISPATCH_SECRET}x` })).status).toBe(401);
+    // klucz publiczny (jak w przeglądarce klienta) nie uprawnia do wywołania
+    expect((await callFnRaw('dispatch-notifications', { apikey: process.env.E2E_PUBLISHABLE_KEY! })).status).toBe(401);
+    expect((await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': DISPATCH_SECRET }, 'GET')).status).toBe(405);
+  });
+
+  it('zaległy alert po awarii odbiornika dociera bez żadnego ruchu klienta: wystarczy wywołanie crona', async () => {
+    const session = await afterCta('ntf-cron');
+    receiver.next(session.id, { status: 500 });
+    expect((await visit(session.token)).status).toBe(200);
+    await receiver.waitFor((r) => r.payload?.sessionUrl?.includes(session.id));
+    await until(() => outbox(session.id), (r) => r[0]?.attempts === 1 && r[0]?.status === 'pending');
+
+    // od tej chwili klient nic nie robi; ponawia wyłącznie zadanie crona
+    const res = await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': DISPATCH_SECRET });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ configured: true });
+    expect(res.body.sent).toBeGreaterThanOrEqual(0);
+
+    await until(() => outbox(session.id), (r) => r[0]?.status === 'sent');
+    const hits = receiver.forSession(session.id);
+    expect(hits.map((h) => h.respondedWith)).toEqual([500, 200]);
+    expect(hits[0]!.payload.eventId).toBe(hits[1]!.payload.eventId);
+    expect(hits.every((h) => h.signatureOk)).toBe(true);
+  });
+
+  it('pusty outbox: 200 i zerowe liczniki, nic nie jest wysyłane', async () => {
+    const before = receiver.requests.length;
+    await sleep(500);
+    const res = await callFnRaw('dispatch-notifications', { 'X-Dispatch-Secret': DISPATCH_SECRET });
+    expect(res.status).toBe(200);
+    expect(res.body.configured).toBe(true);
+    expect(receiver.requests.length).toBe(before);
   });
 });

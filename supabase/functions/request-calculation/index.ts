@@ -22,6 +22,7 @@ import {
   type SnapshotRow,
 } from '../../../src/cta/calculationJob.ts';
 import { buildCtaView, ctaRejectionStatus, decideCta } from '../../../src/cta/ctaPolicy.ts';
+import { isLandingInvitationEnabled } from '../../../src/email/landingFlag.ts';
 import { createMailer, readDefaultSender } from '../../../src/email/mailer.ts';
 import { admin } from '../_shared/admin.ts';
 import { loadDeliverySummary } from '../_shared/cta.ts';
@@ -161,6 +162,7 @@ Deno.serve(async (req) => {
       appBaseUrl,
       recipient: decision.email,
       defaultSender,
+      landingInvitation: isLandingInvitationEnabled(env),
     });
 
     // 4. Wysyłka i zapis dostawy (udana: użycie + status „udostępniona” robi trigger w bazie).

@@ -36,7 +36,7 @@ cp .env.example .env
 cp supabase/functions/.env.example supabase/functions/.env
 
 # 5. W osobnych terminalach:
-supabase functions serve   # Edge Functions: guest-session, lookup-company, request-calculation
+npm run functions:serve    # Edge Functions (najpierw buduje paczkę ExcelJS do supabase/functions/_vendor/, potem `supabase functions serve`)
 npm run dev                # aplikacja: http://127.0.0.1:5173
 ```
 
@@ -86,7 +86,9 @@ ustawiasz je przez `supabase secrets set`, nigdy w repozytorium.
 ```bash
 npm test             # testy Vitest: obliczenia (zgodność z arkuszem), logika widoków, walidacja
 npm run test:db      # testy pgTAP: RLS, niezmienność tabel, RPC (wymaga działającego supabase start)
-npm run test:e2e     # testy end-to-end etapu 2 na lokalnym stosie (patrz niżej)
+npm run test:e2e     # testy end-to-end na lokalnym stosie (patrz niżej)
+npm run smoke        # kontrola po wdrożeniu: node scripts/smoke.mjs <adres Supabase> <klucz publiczny> [adres aplikacji]
+npm run functions:prepare  # buduje supabase/functions/_vendor/exceljs.js (wymagane przed serve/deploy; robią to functions:serve/deploy)
 npm run typecheck    # sprawdzenie typów
 npm run build        # typecheck + build produkcyjny
 supabase db reset    # czysta baza z migracji + seed
@@ -110,7 +112,7 @@ Powiadomienia przez n8n (Telegram) są opcjonalne:
 ### Testy end-to-end (`npm run test:e2e`)
 
 Sprawdzają prawdziwe Edge Functions, bazę i Mailpit: NIP i GUS, CTA, zamrożenie stanu, Excel odczytany z załącznika,
-blokady i limit wysyłek. Wymagają działających `supabase start`, `supabase functions serve` i świeżej bazy z seedem
+blokady i limit wysyłek. Wymagają działających `supabase start`, `npm run functions:serve` i świeżej bazy z seedem
 (`supabase db reset`); skrypt sprawdza to i podpowiada, czego brakuje. Klucze lokalne pobiera sam ze
 `supabase status` i przekazuje tylko procesowi testów.
 
@@ -153,7 +155,7 @@ supabase/
 
 ## Do zamknięcia przed pierwszą rozmową z klientem
 
-Lista znanych rzeczy (wdrożenie funkcji, limit zapytań, polski szablon maila, procedura usuwania
-danych, marka organizacji) jest w [`docs/spec.md`](docs/spec.md), sekcja „Infrastruktura”.
+Checklista wdrożenia (Supabase w chmurze, sekrety, Auth, Vercel, MailerSend, GUS, n8n, próba końcowa) jest w
+[`docs/deploy.md`](docs/deploy.md); znane ograniczenia i rzeczy odłożone: [`docs/spec.md`](docs/spec.md), sekcja „Infrastruktura”.
 
 © MITAX Consulting sp. z o.o. Wszelkie prawa zastrzeżone.
