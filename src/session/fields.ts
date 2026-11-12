@@ -54,3 +54,14 @@ export function isDefaultValue(key: GuestInputKey, value: InputValue | undefined
   const def = FIELD_DEFAULTS[key];
   return def !== undefined && (value === undefined || value === def);
 }
+
+/**
+ * Wiersz widoku „na żywo” u prezentera: wartość do pokazania i czy to wartość domyślna (znacznik „(domyślne)”).
+ * Brak wpisu i puste pole to dla pól z podpowiedzią to samo (kalkulacja używa wtedy wartości domyślnej), więc pokazujemy
+ * samą liczbę; „–” zostaje tylko dla pól bez wartości domyślnej.
+ */
+export function liveRow(key: GuestInputKey, value: InputValue | undefined): { value: number | null; isDefault: boolean } {
+  const def = FIELD_DEFAULTS[key];
+  if (value === undefined || value === '') return { value: def ?? null, isDefault: def !== undefined };
+  return { value, isDefault: isDefaultValue(key, value) };
+}
