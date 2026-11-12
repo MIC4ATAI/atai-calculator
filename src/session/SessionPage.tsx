@@ -4,7 +4,7 @@ import { mix } from '../calc/calculator';
 import { publicAppOrigin } from '../lib/publicUrl';
 import type { LeadInfo } from '../cta/leadInfo';
 import { CopyButton } from './CopyButton';
-import { FIELD_LABELS, FIELD_ORDER, FIELD_UNITS, isDefaultValue } from './fields';
+import { FIELD_LABELS, FIELD_ORDER, FIELD_UNITS, liveRow } from './fields';
 import { minSec, nf, zl } from './format';
 import { computeCalc, type GuestInputKey } from './guestView';
 import { NumberField } from './NumberField';
@@ -129,8 +129,7 @@ function PresenterSession({ id }: { id: string }) {
               {FIELD_ORDER.map((key) => {
                 const value = inputs[key];
                 const flashing = s.flash?.key === key;
-                const showDefault = isDefaultValue(key, value);
-                const shown = value === undefined || value === '' ? null : value;
+                const { value: shown, isDefault: showDefault } = liveRow(key, value);
                 return (
                   <tr key={flashing ? `${key}-${s.flash?.n}` : key} className={flashing ? 'flash' : undefined}>
                     <td>
@@ -138,13 +137,7 @@ function PresenterSession({ id }: { id: string }) {
                       {showDefault && <small> (domyślne)</small>}
                     </td>
                     <td>
-                      {shown !== null ? (
-                        formatRowValue(key, shown)
-                      ) : isDefaultValue(key, undefined) ? (
-                        <span className="empty">domyślnie</span>
-                      ) : (
-                        <span className="empty">–</span>
-                      )}
+                      {shown !== null ? formatRowValue(key, shown) : <span className="empty">–</span>}
                     </td>
                   </tr>
                 );
