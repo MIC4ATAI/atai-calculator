@@ -5,8 +5,8 @@ ma znaczenie. Zasady z `CLAUDE.md` obowiązują także tutaj: **migracje tylko p
 stronie serwera, żadnych sekretów w repozytorium.**
 
 > **Co jest sprawdzone, a co nie.** Pierwsze wdrożenie produkcyjne wykonano 2026-11-11; jego aktualny stan jest w sekcji
-> „Stan wdrożenia produkcyjnego” poniżej, a podział na sprawdzone lokalnie i w chmurze w sekcji 10. Wciąż **niesprawdzone**:
-> klucz produkcyjny GUS, Telegram + n8n oraz zaplanowane ponawianie alertów w chmurze (Vault nie jest jeszcze skonfigurowany).
+> „Stan wdrożenia produkcyjnego” poniżej, a podział na sprawdzone lokalnie i w chmurze w sekcji 10. Alerty Telegram + n8n, cron
+> (Vault) i klucz produkcyjny GUS są już sprawdzone na produkcji (stan w sekcji „Stan wdrożenia produkcyjnego”).
 
 ## Stan wdrożenia produkcyjnego
 
@@ -18,15 +18,15 @@ stronie serwera, żadnych sekretów w repozytorium.**
 | **Funkcje** | 4 aktywne (wersja 1, `verify_jwt = false`): `guest-session`, `lookup-company`, `request-calculation`, `dispatch-notifications`; po kompresji 0,8–1,1 MB |
 | **Cron powiadomień** | zadanie `dispatch-notifications` aktywne (co minutę); Vault uzupełniony 2026-11-11 skryptem `scripts/setup-dispatch-cron.sh` (`dispatch_url`, `dispatch_secret`; `DISPATCH_SECRET` w funkcjach ustawiony w tym samym przebiegu). **Sprawdzony na żywo 2026-11-11:** przy wyłączonym workflow n8n alert zostaje `pending` (404), a cron ponawia próby co minutę (z poprawnym sekretem z Vault); po włączeniu workflow następna próba crona dosłała alert bez ruchu klienta (wpis 3. próbą, ok. 1,5 min po powrocie) |
 | **n8n** | workflow „Kalkulator BR: alert o powrocie klienta” aktywny na własnym serwerze (`https://n8n.dmb24.pl/webhook/atai-followup`), podpis liczy węzeł Crypto (bez zmian na serwerze); alerty na Telegram potwierdzone na produkcji 2026-11-11 (5 alertów = 5 wpisów w outboxie, bez duplikatów) |
-| **Sekrety funkcji (nazwy)** | ustawione: `MAILERSEND_API_TOKEN`, `MAIL_FROM_DEFAULT`, `MAIL_TRANSPORT`, `APP_BASE_URL`, `MAIL_LANDING_INVITATION`, `DISPATCH_SECRET`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`; **nieustawione:** `GUS_API_KEY`, `MAIL_FROM_NAME` |
+| **Sekrety funkcji (nazwy)** | ustawione: `MAILERSEND_API_TOKEN`, `MAIL_FROM_DEFAULT`, `MAIL_TRANSPORT`, `APP_BASE_URL`, `MAIL_LANDING_INVITATION`, `DISPATCH_SECRET`, `N8N_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET`; `GUS_API_KEY` (produkcyjny, 2026-11-18); **nieustawione:** `MAIL_FROM_NAME` |
 | **Auth** | Site URL i Redirect URLs na domenę produkcyjną i `*.vercel.app`; własny SMTP (MailerSend), limit 30 maili/h; cooldown 1 min na adres; szablon Magic Link po polsku (temat i treść, potwierdzone mailem); rejestracja wyłączona, konta zakłada operator |
 | **Vercel** | projekt `atai-calculator`, gałąź produkcyjna `production`; domena `atai.mitax.pl` (rekord A w OVH, TXT z SPF zachowany) oraz `atai-calculator.vercel.app`; zmienne `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PUBLIC_APP_URL`; zbędne zmienne integracji (`POSTGRES_*`, klucze serwerowe) usunięte; ochrona wdrożeń obejmuje tylko podglądy |
 | **Dane** | 1 organizacja (MITAX), 1 konto w roli `owner`; bez telefonu w profilu i **bez linku do polityki prywatności** |
-| **Weryfikacja** | `npm run smoke` 19/19; pełna sesja od logowania do wysyłki kalkulacji przeszła na produkcji |
+| **Weryfikacja** | `npm run smoke` 20/20; pełna sesja od logowania do wysyłki kalkulacji przeszła na produkcji |
 
 **Otwarte przed pierwszą prawdziwą rozmową:**
 
-- [ ] **Klucz GUS** (`GUS_API_KEY`): bez niego NIP-y są sprawdzane na bazie testowej z nieprawdziwymi danymi firm. **Blokuje prawdziwych klientów.**
+- [x] **Klucz GUS** (`GUS_API_KEY`): produkcyjny klucz ustawiony 2026-11-18, lookup na prawdziwych NIP-ach potwierdzony (potwierdzenie właściciela). Bez klucza funkcja wraca po cichu do bazy testowej z nieprawdziwymi danymi firm, więc przy rotacji sprawdź skrót (`supabase secrets list`).
 - [ ] **Link do polityki prywatności** w organizacji (`organizations.privacy_policy_url`, https); bez niego klauzula RODO przy CTA jest bez odnośnika.
 - [ ] **Treści do potwierdzenia z prawnikiem** (sekcja 8): klauzula domyślna, stopka maila, zaproszenie na landing page.
 - [x] **Rotacja tokenu MailerSend:** poprzednia wartość była widoczna w zapisie sesji roboczej; nowy token ustawiony w sekretach funkcji 2026-11-11 (22:12), prawdziwa wysyłka kalkulacji na nowym tokenie potwierdzona, stary token unieważniony w panelu MailerSend (potwierdzenie właściciela; z poziomu narzędzi nie da się tego zweryfikować).
@@ -296,7 +296,7 @@ Wykonaj jako konsultant z kontem w prawdziwej organizacji i z adresem e-mail, kt
 - [ ] `npm run smoke -- <SUPABASE_URL> <klucz publiczny> <APP_URL>`: wszystko zielone.
 - [ ] Logowanie magic linkiem: mail po polsku, link prowadzi na `APP_URL/org` (nie na localhost).
 - [ ] *Nowa sesja* → link dla rozmówcy otwiera się w oknie prywatnym.
-- [ ] Prawdziwy NIP: wraca **prawdziwa** nazwa firmy z GUS (nie „Test-Krucza”).
+- [x] Prawdziwy NIP: wraca **prawdziwa** nazwa firmy z GUS (nie „Test-Krucza”). Potwierdzone 2026-11-18.
 - [ ] Dane → *Odsłoń wynik*; przykład kontrolny daje 121 h, +10 KH + 20 KPiR przy miksie 10.
 - [ ] CTA: klauzula z nazwą organizacji i **działającym linkiem do polityki prywatności**; wysyłka na własny adres.
 - [ ] Mail dotarł (nie do spamu), nadawca z zweryfikowanej domeny, `Reply-To` konsultanta, brak zaproszenia na landing page
@@ -319,10 +319,11 @@ Mailpicie, **pakowanie wszystkich funkcji poleceniem `edge-runtime bundle` tym s
 **Sprawdzono w chmurze (2026-11-11):** prawdziwe `supabase functions deploy` (importy spoza `supabase/functions` są poprawnie
 dołączane, pakowanie lokalne przez Docker), `db push` 8 migracji, rozszerzenia `pg_cron`/`pg_net`/Vault i zadanie cron na
 hostowanym Supabase (zadanie zarejestrowane i aktywne), `npm run smoke` na produkcji, własny SMTP dla Auth, MailerSend,
-domena na Vercelu z certyfikatem oraz pełna sesja z wysyłką kalkulacji.
+domena na Vercelu z certyfikatem oraz pełna sesja z wysyłką kalkulacji. Dodatkowo: Telegram + n8n (alerty, podpis węzłem Crypto) i
+dosyłanie zaległych alertów przez cron z Vault (2026-11-11), produkcyjny GUS na prawdziwych NIP-ach (2026-11-18).
 
-**Nadal nie sprawdzono:** działanie zaplanowanego zadania w chmurze (wymaga wpisów w Vault), Telegram i n8n, produkcyjny GUS.
-Szablon workflow n8n nie był uruchomiony w żywej instancji: wykonaj próbę z sekcji „Sprawdzenie” w `n8n-followup.md`.
+**Nadal nie sprawdzono:** szczegółów maila z kalkulacją (stopka „Delivered by MailerSend”, `Reply-To`, załącznik w programie pocztowym klienta)
+oraz akceptacji prawnika dla treści z sekcji 8.
 
 ## 11. Znane ograniczenia (świadomie odłożone)
 
